@@ -1,0 +1,18 @@
+{
+  "home": {
+    "title": "PrepGenius AI",
+    "subtitle": "Personalized Learning & Assessment Platform for Regional Competitive Exams"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "practice": "Practice",
+    "mocks": "Mock Tests",
+    "tutor": "AI Tutor",
+    "profile": "Profile"
+  },
+  "auth": {
+    "login": "Login",
+    "logout": "Logout",
+    "register": "Register"
+  }
+}
