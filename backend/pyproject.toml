@@ -8,14 +8,16 @@ version = "0.1.0"
 requires-python = ">=3.12"
 
 [tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "config.settings.dev"
+DJANGO_SETTINGS_MODULE = "config.settings.test"
 python_files = ["tests.py", "test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = [
+    "--ds=config.settings.test",
     "--strict-markers",
     "--tb=short",
-    "--reuse-db",
+    "-p",
+    "no:cacheprovider",
 ]
 markers = [
     "slow: marks tests as slow",

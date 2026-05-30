@@ -1,9 +1,8 @@
 """Central API v1 router. Each app registers its own router here when implemented."""
-from django.urls import path
+from django.urls import include, path
 
 urlpatterns: list = [
-    # App routers are included here as each app's api/ layer is built:
-    # path("auth/", include("accounts.api.urls")),
+    path("auth/", include("accounts.api.urls")),
     # path("exams/", include("exams.api.urls")),
     # path("questions/", include("questions.api.urls")),
     # path("attempts/", include("attempts.api.urls")),

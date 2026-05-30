@@ -34,6 +34,7 @@ DJANGO_APPS = [
 THIRD_PARTY_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
     "drf_spectacular",
     "django_celery_beat",
@@ -130,7 +131,7 @@ PASSWORD_HASHERS = [
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "accounts.authentication.CookieJWTAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
@@ -145,6 +146,8 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "anon": "60/hour",
         "user": "1000/hour",
+        "login": "5/minute",
+        "otp": "3/minute",
     },
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
@@ -255,6 +258,18 @@ LOGGING = {
         "celery": {"handlers": ["console"], "level": "INFO", "propagate": False},
     },
 }
+
+# ── Email ─────────────────────────────────────────────────────────────────────
+
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@prepgenius.ai")
+
+# ── Frontend URL (for email links, etc.) ──────────────────────────────────────
+
+FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:3000")
+
+# ── DPDP consent ─────────────────────────────────────────────────────────────
+
+CONSENT_VERSION = "v1.0"
 
 # ── Security defaults ─────────────────────────────────────────────────────────
 

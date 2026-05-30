@@ -1,0 +1,41 @@
+import uuid
+
+from django.conf import settings
+from django.db import models
+
+
+class PreviousYearPaper(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    exam = models.ForeignKey(
+        "exams.Exam",
+        on_delete=models.CASCADE,
+        related_name="previous_year_papers",
+    )
+    code = models.CharField(max_length=60)
+    year = models.IntegerField()
+    language = models.CharField(max_length=10, default="as")
+    file_path = models.TextField(null=True, blank=True)
+    total_questions = models.IntegerField(default=0)
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Previous Year Paper"
+        verbose_name_plural = "Previous Year Papers"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["exam", "year", "code"],
+                name="uq_pyp_exam_year_code",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["exam", "year"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.exam.code} ({self.year}) — {self.code}"
