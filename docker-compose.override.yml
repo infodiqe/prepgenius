@@ -1,0 +1,22 @@
+# Local development override — HTTP only, no TLS.
+# Docker Compose applies this file automatically alongside docker-compose.yml.
+# Do NOT add secrets or production values here.
+
+services:
+
+  nginx:
+    # Bypass docker-entrypoint.sh template processing entirely.
+    # nginx starts directly, reading only the HTTP-only dev.conf.
+    entrypoint: ["nginx", "-g", "daemon off;"]
+    volumes:
+      - ./infrastructure/nginx/conf.d/dev.conf:/etc/nginx/conf.d/default.conf:ro
+
+  certbot:
+    # Disable the cert-renewal loop; certs are not used in dev.
+    entrypoint: ["/bin/sh", "-c", "echo 'certbot: disabled in dev mode' && exit 0"]
+    restart: "no"
+
+  n8n:
+    environment:
+      N8N_PROTOCOL: http
+      WEBHOOK_URL: http://localhost:5678
