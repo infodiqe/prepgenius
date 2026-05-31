@@ -14,6 +14,7 @@ from attempts.api.views import (
     UserAnswerList,
     UserAnswerSave,
 )
+from analytics.api.views import AttemptResultsView, AttemptAnalyticsView
 
 app_name = "attempts"
 
@@ -57,6 +58,16 @@ urlpatterns = [
         "attempts/<uuid:pk>/score/",
         AttemptScore.as_view(),
         name="attempt-score",
+    ),
+    path(
+        "attempts/<uuid:pk>/results/",
+        AttemptResultsView.as_view(),
+        name="attempt-results",
+    ),
+    path(
+        "attempts/<uuid:pk>/analytics/",
+        AttemptAnalyticsView.as_view(),
+        name="attempt-analytics",
     ),
     # Answers
     path(

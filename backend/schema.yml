@@ -1,0 +1,5066 @@
+openapi: 3.0.3
+info:
+  title: PrepGenius API
+  version: v1
+  description: PrepGenius Competitive Exam Platform API
+paths:
+  /api/v1/ai-generations/:
+    get:
+      operationId: v1_ai_generations_list
+      description: List AI-generated questions for an exam. Requires content_manager
+        or platform_admin role.
+      summary: List AI generations
+      parameters:
+      - in: query
+        name: exam_id
+        schema:
+          type: string
+          format: uuid
+        description: Filter by exam UUID
+        required: true
+      - in: query
+        name: status
+        schema:
+          type: string
+        description: Filter by generation status (generated, validated, promoted,
+          discarded)
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AiGeneratedQuestionRead'
+          description: ''
+        '400':
+          description: Missing required query parameter
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+    post:
+      operationId: v1_ai_generations_create
+      description: Record a new AI generation attempt. Requires content_manager or
+        platform_admin role.
+      summary: Create AI generation
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AiGeneratedQuestionCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AiGeneratedQuestionCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AiGeneratedQuestionCreateRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiGeneratedQuestionRead'
+          description: ''
+        '400':
+          description: Validation error
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+  /api/v1/ai-generations/{id}/:
+    get:
+      operationId: v1_ai_generations_retrieve
+      description: Get a single AI generation record by ID. Requires content_manager
+        or platform_admin role.
+      summary: Retrieve AI generation
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiGeneratedQuestionRead'
+          description: ''
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: AI generation not found
+    patch:
+      operationId: v1_ai_generations_partial_update
+      description: Partially update an AI generation record. Requires content_manager
+        or platform_admin role.
+      summary: Update AI generation
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAiGeneratedQuestionUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAiGeneratedQuestionUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAiGeneratedQuestionUpdateRequest'
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiGeneratedQuestionRead'
+          description: ''
+        '400':
+          description: Validation error
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: AI generation not found
+    delete:
+      operationId: v1_ai_generations_destroy
+      description: Delete an AI generation record. Requires content_manager or platform_admin
+        role.
+      summary: Delete AI generation
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '204':
+          description: No response body
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: AI generation not found
+  /api/v1/ai-generations/{id}/promote/:
+    post:
+      operationId: v1_ai_generations_promote_create
+      description: Promote a validated AI generation to a draft question. Requires
+        content_manager or platform_admin role.
+      summary: Promote AI generation to question
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AiGeneratedPromoteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AiGeneratedPromoteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AiGeneratedPromoteRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuestionRead'
+          description: ''
+        '400':
+          description: Validation error or invalid AI generation state
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: AI generation not found
+  /api/v1/appearances/{id}/:
+    delete:
+      operationId: v1_appearances_destroy
+      description: Delete a question appearance. Requires content_manager or platform_admin
+        role.
+      summary: Delete question appearance
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '204':
+          description: No response body
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Appearance not found
+  /api/v1/appearances/create/:
+    post:
+      operationId: v1_appearances_create_create
+      description: Record a question appearance in a previous-year paper. Requires
+        content_manager or platform_admin role.
+      summary: Create question appearance
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuestionAppearanceCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/QuestionAppearanceCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/QuestionAppearanceCreateRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuestionAppearanceRead'
+          description: ''
+        '400':
+          description: Validation error
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+  /api/v1/attempts/attempts/:
+    get:
+      operationId: v1_attempts_attempts_list
+      description: List exam attempts with optional filters.
+      summary: List attempts
+      parameters:
+      - in: query
+        name: exam_id
+        schema:
+          type: string
+          format: uuid
+        description: Filter by exam UUID
+      - in: query
+        name: status
+        schema:
+          type: string
+        description: Filter by status (created, in_progress, submitted, scored)
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExamAttemptRead'
+          description: ''
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+    post:
+      operationId: v1_attempts_attempts_create
+      description: Create a new exam attempt (practice session or mock test).
+      summary: Create attempt
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExamAttemptCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ExamAttemptCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ExamAttemptCreateRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExamAttemptRead'
+          description: ''
+        '400':
+          description: Validation error
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+  /api/v1/attempts/attempts/{attempt_pk}/answers/:
+    get:
+      operationId: v1_attempts_attempts_answers_list
+      description: Retrieve all answers belonging to an attempt.
+      summary: List answers for attempt
+      parameters:
+      - in: path
+        name: attempt_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserAnswerRead'
+          description: ''
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Attempt not found
+  /api/v1/attempts/attempts/{attempt_pk}/answers/bulk-save/:
+    post:
+      operationId: v1_attempts_attempts_answers_bulk_save_create
+      description: Save multiple answers at once for an active attempt.
+      summary: Bulk save answers
+      parameters:
+      - in: path
+        name: attempt_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserAnswerBulkSaveRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserAnswerBulkSaveRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserAnswerBulkSaveRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserAnswerRead'
+          description: ''
+        '400':
+          description: Validation error
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Attempt or question not found
+  /api/v1/attempts/attempts/{attempt_pk}/answers/save/:
+    post:
+      operationId: v1_attempts_attempts_answers_save_create
+      description: Save a single answer for a question in an active attempt. Idempotent
+        (same attempt+question updates existing).
+      summary: Save answer
+      parameters:
+      - in: path
+        name: attempt_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserAnswerSaveRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserAnswerSaveRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserAnswerSaveRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserAnswerRead'
+          description: ''
+        '400':
+          description: Validation error or attempt not in progress
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Attempt or question not found
+  /api/v1/attempts/attempts/{id}/:
+    get:
+      operationId: v1_attempts_attempts_retrieve
+      description: Get details of a single exam attempt by ID.
+      summary: Retrieve attempt
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScoredAttemptDetail'
+          description: ''
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Attempt not found
+  /api/v1/attempts/attempts/{id}/analytics/:
+    get:
+      operationId: v1_attempts_attempts_analytics_retrieve
+      description: Get subject and topic accuracy and average time breakdowns for
+        a scored attempt.
+      summary: Retrieve attempt analytics
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttemptAnalytics'
+          description: ''
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Attempt not found
+  /api/v1/attempts/attempts/{id}/results/:
+    get:
+      operationId: v1_attempts_attempts_results_retrieve
+      description: Get result metadata and dynamically computed pass/needs-work status
+        for a scored attempt.
+      summary: Retrieve attempt results
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttemptResults'
+          description: ''
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Attempt not found
+  /api/v1/attempts/attempts/{id}/score/:
+    post:
+      operationId: v1_attempts_attempts_score_create
+      description: Score a submitted attempt (transition from submitted to scored).
+        Requires content_manager or platform_admin role.
+      summary: Score attempt
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScoredAttemptDetail'
+          description: ''
+        '400':
+          description: Invalid transition
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Attempt not found
+  /api/v1/attempts/attempts/{id}/start/:
+    post:
+      operationId: v1_attempts_attempts_start_create
+      description: Start an exam attempt (transition from created to in_progress).
+      summary: Start attempt
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExamAttemptRead'
+          description: ''
+        '400':
+          description: Invalid transition or mock test not published
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Attempt not found
+  /api/v1/attempts/attempts/{id}/submit/:
+    post:
+      operationId: v1_attempts_attempts_submit_create
+      description: Submit an exam attempt (transition from in_progress to submitted).
+      summary: Submit attempt
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExamAttemptRead'
+          description: ''
+        '400':
+          description: Invalid transition
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Attempt not found
+  /api/v1/attempts/mock-test-questions/{id}/:
+    delete:
+      operationId: v1_attempts_mock_test_questions_destroy
+      description: Remove a question from a mock test. Requires content_manager or
+        platform_admin role.
+      summary: Remove question from mock test
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '204':
+          description: No response body
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Mock test question not found
+  /api/v1/attempts/mock-tests/:
+    get:
+      operationId: v1_attempts_mock_tests_list
+      description: List mock tests with optional exam_id and is_published filters.
+      summary: List mock tests
+      parameters:
+      - in: query
+        name: exam_id
+        schema:
+          type: string
+          format: uuid
+        description: Filter by exam UUID
+      - in: query
+        name: is_published
+        schema:
+          type: boolean
+        description: Filter by published status
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MockTestRead'
+          description: ''
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+    post:
+      operationId: v1_attempts_mock_tests_create
+      description: Create a new mock test. Requires content_manager or platform_admin
+        role.
+      summary: Create mock test
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MockTestCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MockTestCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MockTestCreateRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MockTestRead'
+          description: ''
+        '400':
+          description: Validation error
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+  /api/v1/attempts/mock-tests/{mock_test_pk}/questions/:
+    get:
+      operationId: v1_attempts_mock_tests_questions_list
+      description: Retrieve all questions belonging to a mock test.
+      summary: List questions in mock test
+      parameters:
+      - in: path
+        name: mock_test_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MockTestQuestionRead'
+          description: ''
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Mock test not found
+    post:
+      operationId: v1_attempts_mock_tests_questions_create
+      description: Add a question to a mock test. Requires content_manager or platform_admin
+        role.
+      summary: Add question to mock test
+      parameters:
+      - in: path
+        name: mock_test_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MockTestQuestionCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MockTestQuestionCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MockTestQuestionCreateRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MockTestQuestionRead'
+          description: ''
+        '400':
+          description: Validation error
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Mock test or question not found
+  /api/v1/attempts/mock-tests/{id}/:
+    get:
+      operationId: v1_attempts_mock_tests_retrieve
+      description: Get a single mock test by ID.
+      summary: Retrieve mock test
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MockTestRead'
+          description: ''
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Mock test not found
+    patch:
+      operationId: v1_attempts_mock_tests_partial_update
+      description: Partially update a mock test. Requires content_manager or platform_admin
+        role.
+      summary: Update mock test
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedMockTestUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedMockTestUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedMockTestUpdateRequest'
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MockTestRead'
+          description: ''
+        '400':
+          description: Validation error
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Mock test not found
+    delete:
+      operationId: v1_attempts_mock_tests_destroy
+      description: Delete a mock test. Requires content_manager or platform_admin
+        role.
+      summary: Delete mock test
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '204':
+          description: No response body
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Mock test not found
+  /api/v1/auth/account/delete/:
+    delete:
+      operationId: auth_account_delete
+      summary: Delete (anonymize) user account
+      tags:
+      - auth
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          description: Account deleted. Auth cookies cleared.
+        '400':
+          description: Incorrect password
+  /api/v1/auth/data/export/:
+    post:
+      operationId: auth_data_export
+      summary: Request a data export (GDPR/DPDP)
+      tags:
+      - auth
+      security:
+      - cookieJWT: []
+      responses:
+        '202':
+          description: Data export queued. An email will be sent when ready.
+  /api/v1/auth/login/:
+    post:
+      operationId: auth_login
+      summary: Log in with email and password
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      - {}
+      responses:
+        '200':
+          description: Login successful. Access and refresh tokens set as httpOnly
+            cookies.
+        '401':
+          description: Invalid credentials
+  /api/v1/auth/logout/:
+    post:
+      operationId: auth_logout
+      summary: Log out and blacklist refresh token
+      tags:
+      - auth
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          description: Logged out. Auth cookies cleared.
+  /api/v1/auth/password/confirm/:
+    post:
+      operationId: auth_password_reset_confirm
+      summary: Confirm password reset with token
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirmRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirmRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirmRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      - {}
+      responses:
+        '200':
+          description: Password reset successfully.
+        '400':
+          description: Invalid or expired token, or weak password
+  /api/v1/auth/password/reset/:
+    post:
+      operationId: auth_password_reset_request
+      summary: Request password reset email
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequestRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      - {}
+      responses:
+        '200':
+          description: If the account exists, a reset link has been sent.
+  /api/v1/auth/profile/:
+    get:
+      operationId: auth_get_profile
+      summary: Get current user profile
+      tags:
+      - auth
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+          description: ''
+    patch:
+      operationId: auth_update_profile
+      summary: Update current user profile
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUpdateProfileRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUpdateProfileRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUpdateProfileRequest'
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+          description: ''
+        '400':
+          description: Validation error
+  /api/v1/auth/register/:
+    post:
+      operationId: auth_register
+      summary: Register a new user account
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistrationRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RegistrationRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RegistrationRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      - {}
+      responses:
+        '201':
+          description: Registration successful. Verification email sent.
+        '400':
+          description: Validation error
+  /api/v1/auth/resend-verification/:
+    post:
+      operationId: auth_resend_verification
+      summary: Resend email verification link
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResendVerificationRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ResendVerificationRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ResendVerificationRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      - {}
+      responses:
+        '200':
+          description: If the account exists and is unverified, a new link has been
+            sent.
+  /api/v1/auth/token/refresh/:
+    post:
+      operationId: auth_token_refresh
+      summary: Refresh access token using refresh cookie
+      tags:
+      - auth
+      security:
+      - cookieJWT: []
+      - {}
+      responses:
+        '200':
+          description: Token refreshed. New access/refresh tokens set as httpOnly
+            cookies.
+        '401':
+          description: Invalid or expired refresh token
+  /api/v1/auth/verify-email/:
+    post:
+      operationId: auth_verify_email
+      summary: Verify email address with token
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      - {}
+      responses:
+        '200':
+          description: Email verified successfully.
+        '400':
+          description: Invalid or expired token
+  /api/v1/dashboard/:
+    get:
+      operationId: v1_dashboard_retrieve
+      description: Returns streak, daily progress, overall accuracy, recent activity,
+        active weak topics and practice recommendations for the authenticated student.
+        Admin users may pass an optional `exam_id` query parameter to view any student's
+        dashboard.
+      summary: Student dashboard summary
+      parameters:
+      - in: query
+        name: exam_id
+        schema:
+          type: string
+        description: UUID of the exam. Falls back to the user's target_exam if omitted.
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dashboard'
+          description: ''
+        '400':
+          description: exam_id is required but not set
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Exam not found
+  /api/v1/exams/:
+    get:
+      operationId: v1_exams_list
+      description: Retrieve all exam configurations. Returns an array of exam objects.
+      summary: List exams
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExamRead'
+          description: ''
+    post:
+      operationId: v1_exams_create
+      description: Create a new exam configuration. Requires content_manager or platform_admin
+        role.
+      summary: Create exam
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExamCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ExamCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ExamCreateRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExamRead'
+          description: ''
+  /api/v1/exams/{exam_pk}/subjects/:
+    get:
+      operationId: v1_exams_subjects_list
+      description: Retrieve all subjects belonging to an exam.
+      summary: List subjects for exam
+      parameters:
+      - in: path
+        name: exam_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SubjectRead'
+          description: ''
+  /api/v1/exams/{exam_pk}/syllabus/:
+    get:
+      operationId: v1_exams_syllabus_list
+      description: Retrieve all syllabus items for an exam.
+      summary: List syllabus for exam
+      parameters:
+      - in: path
+        name: exam_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SyllabusItemRead'
+          description: ''
+  /api/v1/exams/{id}/:
+    get:
+      operationId: v1_exams_retrieve
+      description: Get a single exam configuration by ID.
+      summary: Retrieve exam
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExamRead'
+          description: ''
+    patch:
+      operationId: v1_exams_partial_update
+      description: Partially update an exam configuration. Requires content_manager
+        or platform_admin role.
+      summary: Update exam
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedExamUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedExamUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedExamUpdateRequest'
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExamRead'
+          description: ''
+  /api/v1/exams/{id}/activate/:
+    post:
+      operationId: v1_exams_activate_create
+      description: Activate an exam configuration. Requires platform_admin role only.
+      summary: Activate exam
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExamRead'
+          description: ''
+  /api/v1/exams/{id}/deactivate/:
+    post:
+      operationId: v1_exams_deactivate_create
+      description: Deactivate an exam configuration. Requires platform_admin role
+        only.
+      summary: Deactivate exam
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExamRead'
+          description: ''
+  /api/v1/exams/{id}/tree/:
+    get:
+      operationId: v1_exams_tree_retrieve
+      description: Retrieve exam with nested subjects, topics, and subtopics in a
+        single tree structure.
+      summary: Exam hierarchy tree
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExamHierarchy'
+          description: ''
+  /api/v1/options/{id}/:
+    get:
+      operationId: v1_options_retrieve
+      description: Get a single option by ID.
+      summary: Retrieve question option
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuestionOptionRead'
+          description: ''
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Option not found
+    patch:
+      operationId: v1_options_partial_update
+      description: Partially update an option. Requires content_manager or platform_admin
+        role.
+      summary: Update question option
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedQuestionOptionUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedQuestionOptionUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedQuestionOptionUpdateRequest'
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuestionOptionRead'
+          description: ''
+        '400':
+          description: Validation error
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Option not found
+    delete:
+      operationId: v1_options_destroy
+      description: Delete an option. Requires content_manager or platform_admin role.
+      summary: Delete question option
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '204':
+          description: No response body
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Option not found
+  /api/v1/options/create/:
+    post:
+      operationId: v1_options_create_create
+      description: Create a new option for a question. Requires content_manager or
+        platform_admin role.
+      summary: Create question option
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuestionOptionCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/QuestionOptionCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/QuestionOptionCreateRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuestionOptionRead'
+          description: ''
+        '400':
+          description: Validation error
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+  /api/v1/papers/:
+    get:
+      operationId: v1_papers_list
+      description: Retrieve previous year papers. Optionally filter by exam_id query
+        parameter.
+      summary: List previous year papers
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PreviousYearPaperRead'
+          description: ''
+    post:
+      operationId: v1_papers_create
+      description: Create a new previous year paper. Requires content_manager or platform_admin
+        role.
+      summary: Create previous year paper
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreviousYearPaperCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PreviousYearPaperCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PreviousYearPaperCreateRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreviousYearPaperRead'
+          description: ''
+  /api/v1/papers/{id}/:
+    get:
+      operationId: v1_papers_retrieve
+      description: Get a single previous year paper by ID.
+      summary: Retrieve previous year paper
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreviousYearPaperRead'
+          description: ''
+    patch:
+      operationId: v1_papers_partial_update
+      description: Partially update a previous year paper. Requires content_manager
+        or platform_admin role.
+      summary: Update previous year paper
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedPreviousYearPaperUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedPreviousYearPaperUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedPreviousYearPaperUpdateRequest'
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreviousYearPaperRead'
+          description: ''
+  /api/v1/questions/:
+    get:
+      operationId: v1_questions_list
+      description: List questions with optional exam_id and review_status filters.
+      summary: List questions
+      parameters:
+      - in: query
+        name: exam_id
+        schema:
+          type: string
+          format: uuid
+        description: Filter by exam UUID
+      - in: query
+        name: review_status
+        schema:
+          type: string
+        description: Filter by review status (draft, in_review, approved, published,
+          rejected)
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/QuestionRead'
+          description: ''
+        '400':
+          description: Invalid query parameter
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+    post:
+      operationId: v1_questions_create
+      description: Create a new question. Requires content_manager or platform_admin
+        role.
+      summary: Create question
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuestionCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/QuestionCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/QuestionCreateRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuestionRead'
+          description: ''
+        '400':
+          description: Validation error
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+  /api/v1/questions/{id}/:
+    get:
+      operationId: v1_questions_retrieve
+      description: Get a single question by ID.
+      summary: Retrieve question
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuestionRead'
+          description: ''
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Question not found
+    patch:
+      operationId: v1_questions_partial_update
+      description: Partially update a question. Requires content_manager or platform_admin
+        role.
+      summary: Update question
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedQuestionUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedQuestionUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedQuestionUpdateRequest'
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuestionRead'
+          description: ''
+        '400':
+          description: Validation error
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Question not found
+    delete:
+      operationId: v1_questions_destroy
+      description: Delete a question. Requires content_manager or platform_admin role.
+      summary: Delete question
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '204':
+          description: No response body
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Question not found
+  /api/v1/questions/{question_pk}/appearances/:
+    get:
+      operationId: v1_questions_appearances_list
+      description: Retrieve all previous-year appearances for a question.
+      summary: List appearances for question
+      parameters:
+      - in: path
+        name: question_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/QuestionAppearanceRead'
+          description: ''
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Question not found
+  /api/v1/questions/{question_pk}/approvals/:
+    get:
+      operationId: v1_questions_approvals_list
+      description: Retrieve all content approval records for a question, ordered by
+        most recent first.
+      summary: List approvals for a question
+      parameters:
+      - in: path
+        name: question_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ContentApprovalRead'
+          description: ''
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Question not found
+  /api/v1/questions/{question_pk}/approve/:
+    post:
+      operationId: v1_questions_approve_create
+      description: Approve a question (reviewer level). Moves from in_review to approved
+        and creates a ContentApproval. Requires content_reviewer, content_manager,
+        or platform_admin role.
+      summary: Approve question
+      parameters:
+      - in: path
+        name: question_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewActionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReviewActionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReviewActionRequest'
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          description: No response body
+        '400':
+          description: Invalid transition or validation error
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Question not found
+  /api/v1/questions/{question_pk}/claim/:
+    post:
+      operationId: v1_questions_claim_create
+      description: Claim a question to signal it is being reviewed. Prevents double-claim.
+        Requires content_reviewer, content_manager, or platform_admin role.
+      summary: Claim question for review
+      parameters:
+      - in: path
+        name: question_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClaimQuestionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ClaimQuestionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ClaimQuestionRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          description: No response body
+        '400':
+          description: Validation error
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Question not found
+        '409':
+          description: Already claimed
+  /api/v1/questions/{question_pk}/options/:
+    get:
+      operationId: v1_questions_options_list
+      description: Retrieve all options belonging to a question.
+      summary: List options for question
+      parameters:
+      - in: path
+        name: question_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/QuestionOptionRead'
+          description: ''
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Question not found
+  /api/v1/questions/{question_pk}/publish/:
+    post:
+      operationId: v1_questions_publish_create
+      description: Publish an approved question. Requires at least one ContentApproval
+        to exist. Requires content_manager or platform_admin role.
+      summary: Publish question
+      parameters:
+      - in: path
+        name: question_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewActionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReviewActionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReviewActionRequest'
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          description: No response body
+        '400':
+          description: Missing approval or invalid transition
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Question not found
+  /api/v1/questions/{question_pk}/reject/:
+    post:
+      operationId: v1_questions_reject_create
+      description: Reject a question and return it to draft/in_review. Valid from
+        any reviewable state. Requires content_reviewer, sme, content_manager, or
+        platform_admin role.
+      summary: Reject question
+      parameters:
+      - in: path
+        name: question_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewActionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReviewActionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReviewActionRequest'
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          description: No response body
+        '400':
+          description: Invalid transition or validation error
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Question not found
+  /api/v1/questions/{question_pk}/release-claim/:
+    post:
+      operationId: v1_questions_release_claim_create
+      description: Release a previously claimed question so others can claim it. Content
+        reviewers can only release their own claims. Content managers and platform
+        admins can release any claim.
+      summary: Release claim on question
+      parameters:
+      - in: path
+        name: question_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReleaseClaimRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReleaseClaimRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReleaseClaimRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          description: No response body
+        '400':
+          description: Validation error
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied or not claim owner
+        '404':
+          description: Question not found
+  /api/v1/questions/{question_pk}/request-sme/:
+    post:
+      operationId: v1_questions_request_sme_create
+      description: Escalate a question from in_review to sme_review. Requires content_reviewer,
+        content_manager, or platform_admin role.
+      summary: Request SME review
+      parameters:
+      - in: path
+        name: question_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewActionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReviewActionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReviewActionRequest'
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          description: No response body
+        '400':
+          description: Invalid transition or validation error
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Question not found
+  /api/v1/questions/{question_pk}/reviews/:
+    get:
+      operationId: v1_questions_reviews_list
+      description: Retrieve all content review entries for a question, ordered by
+        most recent first.
+      summary: List review history for a question
+      parameters:
+      - in: path
+        name: question_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ContentReviewRead'
+          description: ''
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Question not found
+  /api/v1/questions/{question_pk}/sme-approve/:
+    post:
+      operationId: v1_questions_sme_approve_create
+      description: Approve a question at SME level. Moves from sme_review to approved
+        and creates an SME ContentApproval. Requires sme or platform_admin role.
+      summary: SME-approve question
+      parameters:
+      - in: path
+        name: question_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewActionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReviewActionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReviewActionRequest'
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          description: No response body
+        '400':
+          description: Invalid transition or validation error
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Question not found
+  /api/v1/questions/{question_pk}/stats/:
+    get:
+      operationId: v1_questions_stats_retrieve
+      description: Get performance statistics for a question.
+      summary: Retrieve question stats
+      parameters:
+      - in: path
+        name: question_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuestionStatRead'
+          description: ''
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Stats not found
+  /api/v1/questions/{question_pk}/submit/:
+    post:
+      operationId: v1_questions_submit_create
+      description: Move a question from draft to in_review. Requires content_reviewer,
+        content_manager, or platform_admin role.
+      summary: Submit question for review
+      parameters:
+      - in: path
+        name: question_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewActionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReviewActionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReviewActionRequest'
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          description: No response body
+        '400':
+          description: Invalid transition or validation error
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Question not found
+  /api/v1/questions/published/:
+    get:
+      operationId: v1_questions_published_list
+      description: List published questions for practice. Optionally filter by exam_id.
+      summary: List published questions
+      parameters:
+      - in: query
+        name: exam_id
+        schema:
+          type: string
+          format: uuid
+        description: Filter by exam UUID
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/QuestionRead'
+          description: ''
+        '400':
+          description: Invalid query parameter
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+  /api/v1/questions/published/{id}/:
+    get:
+      operationId: v1_questions_published_retrieve
+      description: Get a single published question by ID.
+      summary: Retrieve published question
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuestionRead'
+          description: ''
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Published question not found
+  /api/v1/questions/published/by-subtopic/{subtopic_id}/:
+    get:
+      operationId: v1_questions_published_by_subtopic_list
+      description: List published questions for a specific subtopic.
+      summary: List published questions by subtopic
+      parameters:
+      - in: path
+        name: subtopic_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/QuestionRead'
+          description: ''
+        '401':
+          description: Not authenticated
+        '403':
+          description: Permission denied
+        '404':
+          description: Subtopic not found
+  /api/v1/subjects/:
+    post:
+      operationId: v1_subjects_create
+      description: Create a new subject under an exam. Requires content_manager or
+        platform_admin role.
+      summary: Create subject
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubjectCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SubjectCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SubjectCreateRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubjectRead'
+          description: ''
+  /api/v1/subjects/{id}/:
+    get:
+      operationId: v1_subjects_retrieve
+      description: Get a single subject by ID.
+      summary: Retrieve subject
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubjectRead'
+          description: ''
+    patch:
+      operationId: v1_subjects_partial_update
+      description: Partially update a subject. Requires content_manager or platform_admin
+        role.
+      summary: Update subject
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSubjectUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedSubjectUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedSubjectUpdateRequest'
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubjectRead'
+          description: ''
+  /api/v1/subjects/{subject_pk}/topics/:
+    get:
+      operationId: v1_subjects_topics_list
+      description: Retrieve all topics belonging to a subject.
+      summary: List topics for subject
+      parameters:
+      - in: path
+        name: subject_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TopicRead'
+          description: ''
+  /api/v1/subtopics/:
+    post:
+      operationId: v1_subtopics_create
+      description: Create a new subtopic under a topic. Requires content_manager or
+        platform_admin role.
+      summary: Create subtopic
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubtopicCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SubtopicCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SubtopicCreateRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubtopicRead'
+          description: ''
+  /api/v1/subtopics/{id}/:
+    get:
+      operationId: v1_subtopics_retrieve
+      description: Get a single subtopic by ID.
+      summary: Retrieve subtopic
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubtopicRead'
+          description: ''
+    patch:
+      operationId: v1_subtopics_partial_update
+      description: Partially update a subtopic. Requires content_manager or platform_admin
+        role.
+      summary: Update subtopic
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSubtopicUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedSubtopicUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedSubtopicUpdateRequest'
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubtopicRead'
+          description: ''
+  /api/v1/syllabus/:
+    post:
+      operationId: v1_syllabus_create
+      description: Create a new syllabus item for an exam. Requires content_manager
+        or platform_admin role.
+      summary: Create syllabus item
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SyllabusItemCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SyllabusItemCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SyllabusItemCreateRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyllabusItemRead'
+          description: ''
+  /api/v1/syllabus/{id}/:
+    get:
+      operationId: v1_syllabus_retrieve
+      description: Get a single syllabus item by ID.
+      summary: Retrieve syllabus item
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyllabusItemRead'
+          description: ''
+    patch:
+      operationId: v1_syllabus_partial_update
+      description: Partially update a syllabus item. Requires content_manager or platform_admin
+        role.
+      summary: Update syllabus item
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSyllabusItemUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedSyllabusItemUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedSyllabusItemUpdateRequest'
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyllabusItemRead'
+          description: ''
+  /api/v1/topics/:
+    post:
+      operationId: v1_topics_create
+      description: Create a new topic under a subject. Requires content_manager or
+        platform_admin role.
+      summary: Create topic
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TopicCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TopicCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TopicCreateRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopicRead'
+          description: ''
+  /api/v1/topics/{id}/:
+    get:
+      operationId: v1_topics_retrieve
+      description: Get a single topic by ID.
+      summary: Retrieve topic
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopicRead'
+          description: ''
+    patch:
+      operationId: v1_topics_partial_update
+      description: Partially update a topic. Requires content_manager or platform_admin
+        role.
+      summary: Update topic
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTopicUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedTopicUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedTopicUpdateRequest'
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopicRead'
+          description: ''
+  /api/v1/topics/{topic_pk}/subtopics/:
+    get:
+      operationId: v1_topics_subtopics_list
+      description: Retrieve all subtopics belonging to a topic.
+      summary: List subtopics for topic
+      parameters:
+      - in: path
+        name: topic_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SubtopicRead'
+          description: ''
+components:
+  schemas:
+    ActionEnum:
+      enum:
+      - submit
+      - claim
+      - edit
+      - approve
+      - reject
+      - request_sme
+      - publish
+      - audit_flag
+      type: string
+      description: |-
+        * `submit` - Submit
+        * `claim` - Claim
+        * `edit` - Edit
+        * `approve` - Approve
+        * `reject` - Reject
+        * `request_sme` - Request SME
+        * `publish` - Publish
+        * `audit_flag` - Audit Flag
+    AiGeneratedPromoteRequest:
+      type: object
+      properties:
+        stem:
+          type: string
+          minLength: 1
+        subtopic_id:
+          type: string
+          format: uuid
+          description: ID of the subtopic
+        explanation:
+          type: string
+          nullable: true
+        difficulty:
+          type: integer
+          default: 2
+        language:
+          type: string
+          minLength: 1
+          default: as
+        tags: {}
+      required:
+      - stem
+      - subtopic_id
+    AiGeneratedQuestionCreateRequest:
+      type: object
+      properties:
+        exam_id:
+          type: string
+          format: uuid
+          description: ID of the target exam
+        subtopic_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID of the subtopic (if scoped)
+        model_used:
+          type: string
+          minLength: 1
+          maxLength: 60
+        generation_batch:
+          type: string
+          format: uuid
+          nullable: true
+          description: Batch UUID for grouping multiple generations
+        prompt:
+          type: string
+          nullable: true
+        constraints_snapshot: {}
+        raw_output:
+          type: string
+          nullable: true
+        validation: {}
+        credits_charged:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,4})?$
+          default: '0.0000'
+      required:
+      - exam_id
+      - model_used
+    AiGeneratedQuestionRead:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        exam_id:
+          type: string
+          format: uuid
+          readOnly: true
+        subtopic_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        generation_batch:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        model_used:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/AiGeneratedQuestionReadStatusEnum'
+          readOnly: true
+        resulting_question_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - exam_id
+      - generation_batch
+      - id
+      - model_used
+      - resulting_question_id
+      - status
+      - subtopic_id
+    AiGeneratedQuestionReadStatusEnum:
+      enum:
+      - generated
+      - validated
+      - promoted
+      - discarded
+      type: string
+      description: |-
+        * `generated` - Generated
+        * `validated` - Validated
+        * `promoted` - Promoted
+        * `discarded` - Discarded
+    AiGeneratedQuestionUpdateStatusEnum:
+      enum:
+      - generated
+      - validated
+      - promoted
+      - discarded
+      type: string
+      description: |-
+        * `generated` - generated
+        * `validated` - validated
+        * `promoted` - promoted
+        * `discarded` - discarded
+    ApprovalLevelEnum:
+      enum:
+      - reviewer
+      - sme
+      type: string
+      description: |-
+        * `reviewer` - Reviewer
+        * `sme` - SME
+    AttemptAnalytics:
+      type: object
+      properties:
+        attempt_id:
+          type: string
+          format: uuid
+        subjects:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttemptSectionAnalyticItem'
+        topics:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttemptSectionAnalyticItem'
+      required:
+      - attempt_id
+      - subjects
+      - topics
+    AttemptResults:
+      type: object
+      properties:
+        attempt_id:
+          type: string
+          format: uuid
+        score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,5}(?:\.\d{0,2})?$
+          nullable: true
+        max_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,5}(?:\.\d{0,2})?$
+          nullable: true
+        correct:
+          type: integer
+        incorrect:
+          type: integer
+        skipped:
+          type: integer
+        accuracy:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        time_taken_seconds:
+          type: integer
+          nullable: true
+        status:
+          type: string
+        submitted_at:
+          type: string
+          format: date-time
+          nullable: true
+        pass_status:
+          type: string
+      required:
+      - accuracy
+      - attempt_id
+      - correct
+      - incorrect
+      - max_score
+      - pass_status
+      - score
+      - skipped
+      - status
+      - submitted_at
+      - time_taken_seconds
+    AttemptSectionAnalyticItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        scope_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        total:
+          type: integer
+        correct:
+          type: integer
+        accuracy:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        avg_time:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,6}(?:\.\d{0,2})?$
+          nullable: true
+      required:
+      - accuracy
+      - avg_time
+      - correct
+      - id
+      - name
+      - scope_id
+      - total
+    AttemptTypeAf7Enum:
+      enum:
+      - topic
+      - subject
+      - mixed
+      - previous_year
+      - full_mock
+      - daily
+      type: string
+      description: |-
+        * `topic` - Topic
+        * `subject` - Subject
+        * `mixed` - Mixed
+        * `previous_year` - Previous Year
+        * `full_mock` - Full Mock
+        * `daily` - Daily
+    ClaimQuestionRequest:
+      type: object
+      properties:
+        question_id:
+          type: string
+          format: uuid
+      required:
+      - question_id
+    ContentApprovalRead:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        question_id:
+          type: string
+          format: uuid
+          readOnly: true
+        approver:
+          type: string
+          format: uuid
+          nullable: true
+        approver_name:
+          type: string
+          readOnly: true
+        approval_level:
+          $ref: '#/components/schemas/ApprovalLevelEnum'
+        note:
+          type: string
+          nullable: true
+        approved_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - approval_level
+      - approved_at
+      - approver_name
+      - id
+      - question_id
+    ContentReviewRead:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        question_id:
+          type: string
+          format: uuid
+          nullable: true
+          readOnly: true
+        actor:
+          type: string
+          format: uuid
+          nullable: true
+        actor_name:
+          type: string
+          readOnly: true
+        actor_role:
+          type: string
+          nullable: true
+          maxLength: 50
+        action:
+          $ref: '#/components/schemas/ActionEnum'
+        from_status:
+          type: string
+          nullable: true
+          maxLength: 20
+        to_status:
+          type: string
+          nullable: true
+          maxLength: 20
+        comment:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - action
+      - actor_name
+      - created_at
+      - id
+      - question_id
+    Dashboard:
+      type: object
+      properties:
+        streak:
+          type: integer
+        daily_questions_attempted:
+          type: integer
+        daily_target:
+          type: integer
+        overall_accuracy:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        recent_activity:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecentActivity'
+        weak_topics:
+          type: array
+          items:
+            $ref: '#/components/schemas/WeakTopic'
+        recommendations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Recommendation'
+      required:
+      - daily_questions_attempted
+      - daily_target
+      - overall_accuracy
+      - recent_activity
+      - recommendations
+      - streak
+      - weak_topics
+    ExamAttemptCreateAttemptTypeEnum:
+      enum:
+      - topic
+      - subject
+      - mixed
+      - previous_year
+      - full_mock
+      - daily
+      type: string
+      description: |-
+        * `topic` - topic
+        * `subject` - subject
+        * `mixed` - mixed
+        * `previous_year` - previous_year
+        * `full_mock` - full_mock
+        * `daily` - daily
+    ExamAttemptCreateRequest:
+      type: object
+      properties:
+        exam_id:
+          type: string
+          format: uuid
+          description: ID of the exam to attempt
+        attempt_type:
+          allOf:
+          - $ref: '#/components/schemas/ExamAttemptCreateAttemptTypeEnum'
+          description: |-
+            Type: topic, subject, mixed, previous_year, full_mock, or daily
+
+            * `topic` - topic
+            * `subject` - subject
+            * `mixed` - mixed
+            * `previous_year` - previous_year
+            * `full_mock` - full_mock
+            * `daily` - daily
+        mock_test_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID of the mock test (if applicable)
+        duration_seconds:
+          type: integer
+          nullable: true
+          description: Duration override in seconds
+      required:
+      - attempt_type
+      - exam_id
+    ExamAttemptRead:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        user_id:
+          type: string
+          format: uuid
+          readOnly: true
+        exam_id:
+          type: string
+          format: uuid
+          readOnly: true
+        mock_test_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        attempt_type:
+          allOf:
+          - $ref: '#/components/schemas/AttemptTypeAf7Enum'
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/Status3c9Enum'
+          readOnly: true
+        started_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        duration_seconds:
+          type: integer
+          readOnly: true
+          nullable: true
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        total_questions:
+          type: integer
+          readOnly: true
+        score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,5}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        max_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,5}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        correct:
+          type: integer
+          readOnly: true
+        incorrect:
+          type: integer
+          readOnly: true
+        skipped:
+          type: integer
+          readOnly: true
+        accuracy:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        time_taken_seconds:
+          type: integer
+          readOnly: true
+          nullable: true
+        institution_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        batch_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - accuracy
+      - attempt_type
+      - batch_id
+      - correct
+      - created_at
+      - duration_seconds
+      - exam_id
+      - id
+      - incorrect
+      - institution_id
+      - max_score
+      - mock_test_id
+      - score
+      - skipped
+      - started_at
+      - status
+      - submitted_at
+      - time_taken_seconds
+      - total_questions
+      - updated_at
+      - user_id
+    ExamCreateRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 40
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        exam_type:
+          allOf:
+          - $ref: '#/components/schemas/ExamTypeEnum'
+          description: |-
+            Exam category: qualifying, ranked, or entrance
+
+            * `qualifying` - qualifying
+            * `ranked` - ranked
+            * `entrance` - entrance
+        difficulty_levels: {}
+        exam_rules: {}
+        blueprint: {}
+        passing_criteria: {}
+        analytics_rules: {}
+        audience_is_minor:
+          type: boolean
+        is_active:
+          type: boolean
+      required:
+      - code
+      - exam_type
+      - name
+    ExamHierarchy:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        code:
+          type: string
+          maxLength: 40
+        name:
+          type: string
+          maxLength: 150
+        subjects:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubjectHierarchy'
+          readOnly: true
+      required:
+      - code
+      - id
+      - name
+      - subjects
+    ExamRead:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        code:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        exam_type:
+          allOf:
+          - $ref: '#/components/schemas/ExamReadExamTypeEnum'
+          readOnly: true
+        difficulty_levels:
+          readOnly: true
+        exam_rules:
+          readOnly: true
+        blueprint:
+          readOnly: true
+        passing_criteria:
+          readOnly: true
+        analytics_rules:
+          readOnly: true
+        audience_is_minor:
+          type: boolean
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - analytics_rules
+      - audience_is_minor
+      - blueprint
+      - code
+      - created_at
+      - difficulty_levels
+      - exam_rules
+      - exam_type
+      - id
+      - is_active
+      - name
+      - passing_criteria
+      - updated_at
+    ExamReadExamTypeEnum:
+      enum:
+      - qualifying
+      - ranked
+      - entrance
+      type: string
+      description: |-
+        * `qualifying` - Qualifying
+        * `ranked` - Ranked
+        * `entrance` - Entrance
+    ExamTypeEnum:
+      enum:
+      - qualifying
+      - ranked
+      - entrance
+      type: string
+      description: |-
+        * `qualifying` - qualifying
+        * `ranked` - ranked
+        * `entrance` - entrance
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - email
+      - password
+    MockTestCreateRequest:
+      type: object
+      properties:
+        exam_id:
+          type: string
+          format: uuid
+          description: ID of the exam this mock test belongs to
+        name:
+          type: string
+          minLength: 1
+          maxLength: 180
+        type:
+          allOf:
+          - $ref: '#/components/schemas/MockTestCreateTypeEnum'
+          description: |-
+            Type: system, previous_year, or custom
+
+            * `system` - system
+            * `previous_year` - previous_year
+            * `custom` - custom
+        duration_seconds:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        total_questions:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        config: {}
+        is_published:
+          type: boolean
+          default: false
+      required:
+      - duration_seconds
+      - exam_id
+      - name
+      - total_questions
+      - type
+    MockTestCreateTypeEnum:
+      enum:
+      - system
+      - previous_year
+      - custom
+      type: string
+      description: |-
+        * `system` - system
+        * `previous_year` - previous_year
+        * `custom` - custom
+    MockTestQuestionCreateRequest:
+      type: object
+      properties:
+        mock_test_id:
+          type: string
+          format: uuid
+          description: ID of the mock test. Optional when mock test is in the URL.
+        question_id:
+          type: string
+          format: uuid
+          description: ID of the question to add
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        section:
+          type: string
+          nullable: true
+          maxLength: 60
+        marks:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          default: '1.00'
+      required:
+      - position
+      - question_id
+    MockTestQuestionRead:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        mock_test_id:
+          type: string
+          format: uuid
+          readOnly: true
+        question_id:
+          type: string
+          format: uuid
+          readOnly: true
+        position:
+          type: integer
+          readOnly: true
+        section:
+          type: string
+          readOnly: true
+          nullable: true
+        marks:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+      required:
+      - id
+      - marks
+      - mock_test_id
+      - position
+      - question_id
+      - section
+    MockTestRead:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        exam_id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        type:
+          allOf:
+          - $ref: '#/components/schemas/MockTestReadTypeEnum'
+          readOnly: true
+        institution_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        created_by_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        previous_year_paper_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        duration_seconds:
+          type: integer
+          readOnly: true
+        total_questions:
+          type: integer
+          readOnly: true
+        config:
+          readOnly: true
+        is_published:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - config
+      - created_at
+      - created_by_id
+      - duration_seconds
+      - exam_id
+      - id
+      - institution_id
+      - is_published
+      - name
+      - previous_year_paper_id
+      - total_questions
+      - type
+      - updated_at
+    MockTestReadTypeEnum:
+      enum:
+      - system
+      - previous_year
+      - custom
+      type: string
+      description: |-
+        * `system` - System
+        * `previous_year` - Previous Year
+        * `custom` - Custom
+    PasswordResetConfirmRequest:
+      type: object
+      properties:
+        token:
+          type: string
+          minLength: 1
+        new_password:
+          type: string
+          writeOnly: true
+          minLength: 8
+        new_password_confirm:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - new_password
+      - new_password_confirm
+      - token
+    PasswordResetRequestRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+      required:
+      - email
+    PatchedAiGeneratedQuestionUpdateRequest:
+      type: object
+      properties:
+        subtopic_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID of the subtopic (if scoped)
+        model_used:
+          type: string
+          minLength: 1
+          maxLength: 60
+        generation_batch:
+          type: string
+          format: uuid
+          nullable: true
+          description: Batch UUID for grouping multiple generations
+        prompt:
+          type: string
+          nullable: true
+        constraints_snapshot: {}
+        raw_output:
+          type: string
+          nullable: true
+        validation: {}
+        credits_charged:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,4})?$
+        status:
+          allOf:
+          - $ref: '#/components/schemas/AiGeneratedQuestionUpdateStatusEnum'
+          description: |-
+            Status: generated, validated, promoted, or discarded
+
+            * `generated` - generated
+            * `validated` - validated
+            * `promoted` - promoted
+            * `discarded` - discarded
+    PatchedExamUpdateRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 40
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        exam_type:
+          allOf:
+          - $ref: '#/components/schemas/ExamTypeEnum'
+          description: |-
+            Exam category: qualifying, ranked, or entrance
+
+            * `qualifying` - qualifying
+            * `ranked` - ranked
+            * `entrance` - entrance
+        difficulty_levels: {}
+        exam_rules: {}
+        blueprint: {}
+        passing_criteria: {}
+        analytics_rules: {}
+        audience_is_minor:
+          type: boolean
+    PatchedMockTestUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 180
+        duration_seconds:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        total_questions:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        config: {}
+        is_published:
+          type: boolean
+    PatchedPreviousYearPaperUpdateRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 60
+        year:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        language:
+          type: string
+          minLength: 1
+          maxLength: 10
+        file_path:
+          type: string
+          nullable: true
+        total_questions:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+    PatchedQuestionOptionUpdateRequest:
+      type: object
+      properties:
+        label:
+          type: string
+          minLength: 1
+          maxLength: 5
+        body:
+          type: string
+          minLength: 1
+        is_correct:
+          type: boolean
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+    PatchedQuestionUpdateRequest:
+      type: object
+      properties:
+        stem:
+          type: string
+          minLength: 1
+        explanation:
+          type: string
+          nullable: true
+        difficulty:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        language:
+          type: string
+          minLength: 1
+          maxLength: 10
+        subtopic_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID of the subtopic this question tests
+        tags: {}
+    PatchedSubjectUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+    PatchedSubtopicUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+    PatchedSyllabusItemUpdateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        parent_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID of the parent syllabus item
+        topic_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID of the related topic
+        subtopic_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID of the related subtopic
+        description:
+          type: string
+        weightage:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+    PatchedTopicUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+    PatchedUpdateProfileRequest:
+      type: object
+      properties:
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        phone_e164:
+          type: string
+          nullable: true
+          maxLength: 20
+        preferred_language:
+          $ref: '#/components/schemas/PreferredLanguageEnum'
+        target_exam_id:
+          type: string
+          format: uuid
+          nullable: true
+        exam_date:
+          type: string
+          format: date
+          nullable: true
+    PreferredLanguageEnum:
+      enum:
+      - as
+      - en
+      - hi
+      type: string
+      description: |-
+        * `as` - as
+        * `en` - en
+        * `hi` - hi
+    PreviousYearPaperCreateRequest:
+      type: object
+      properties:
+        exam_id:
+          type: string
+          format: uuid
+          description: ID of the parent exam
+        code:
+          type: string
+          minLength: 1
+          maxLength: 60
+        year:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        language:
+          type: string
+          minLength: 1
+          maxLength: 10
+        file_path:
+          type: string
+          nullable: true
+        total_questions:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+      required:
+      - code
+      - exam_id
+      - year
+    PreviousYearPaperRead:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        exam_id:
+          type: string
+          format: uuid
+          readOnly: true
+        code:
+          type: string
+          maxLength: 60
+        year:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        language:
+          type: string
+          maxLength: 10
+        file_path:
+          type: string
+          nullable: true
+        total_questions:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - code
+      - created_at
+      - exam_id
+      - id
+      - year
+    QuestionAppearanceCreateRequest:
+      type: object
+      properties:
+        question_id:
+          type: string
+          format: uuid
+          description: ID of the question
+        paper_id:
+          type: string
+          format: uuid
+          description: ID of the previous year paper
+        year:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+      required:
+      - paper_id
+      - question_id
+      - year
+    QuestionAppearanceRead:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        question_id:
+          type: string
+          format: uuid
+          readOnly: true
+        paper_id:
+          type: string
+          format: uuid
+          readOnly: true
+        year:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+      required:
+      - id
+      - paper_id
+      - question_id
+      - year
+    QuestionCreateOriginEnum:
+      enum:
+      - official
+      - ai
+      - manual
+      type: string
+      description: |-
+        * `official` - official
+        * `ai` - ai
+        * `manual` - manual
+    QuestionCreateRequest:
+      type: object
+      properties:
+        exam_id:
+          type: string
+          format: uuid
+          description: ID of the exam this question belongs to
+        subtopic_id:
+          type: string
+          format: uuid
+          description: ID of the subtopic this question tests
+        stem:
+          type: string
+          minLength: 1
+        explanation:
+          type: string
+          nullable: true
+        difficulty:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          default: 2
+        language:
+          type: string
+          minLength: 1
+          default: as
+          maxLength: 10
+        origin:
+          allOf:
+          - $ref: '#/components/schemas/QuestionCreateOriginEnum'
+          default: manual
+          description: |-
+            Origin of the question: official, ai, or manual
+
+            * `official` - official
+            * `ai` - ai
+            * `manual` - manual
+        tags: {}
+      required:
+      - exam_id
+      - stem
+      - subtopic_id
+    QuestionOptionCreateRequest:
+      type: object
+      properties:
+        question_id:
+          type: string
+          format: uuid
+          description: ID of the parent question
+        label:
+          type: string
+          minLength: 1
+          maxLength: 5
+        body:
+          type: string
+          minLength: 1
+        is_correct:
+          type: boolean
+          default: false
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          default: 0
+      required:
+      - body
+      - label
+      - question_id
+    QuestionOptionNested:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        label:
+          type: string
+          maxLength: 5
+        body:
+          type: string
+        is_correct:
+          type: boolean
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+      required:
+      - body
+      - id
+      - label
+    QuestionOptionRead:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        question_id:
+          type: string
+          format: uuid
+          readOnly: true
+        label:
+          type: string
+          maxLength: 5
+        body:
+          type: string
+        is_correct:
+          type: boolean
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+      required:
+      - body
+      - id
+      - label
+      - question_id
+    QuestionRead:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        exam_id:
+          type: string
+          format: uuid
+          readOnly: true
+        subtopic_id:
+          type: string
+          format: uuid
+          readOnly: true
+        stem:
+          type: string
+          readOnly: true
+        explanation:
+          type: string
+          readOnly: true
+          nullable: true
+        difficulty:
+          type: integer
+          readOnly: true
+        language:
+          type: string
+          readOnly: true
+        origin:
+          allOf:
+          - $ref: '#/components/schemas/QuestionReadOriginEnum'
+          readOnly: true
+        review_status:
+          allOf:
+          - $ref: '#/components/schemas/ReviewStatusEnum'
+          readOnly: true
+        verified_by_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        tags:
+          readOnly: true
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuestionOptionNested'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - difficulty
+      - exam_id
+      - explanation
+      - id
+      - language
+      - options
+      - origin
+      - review_status
+      - stem
+      - subtopic_id
+      - tags
+      - updated_at
+      - verified_by_id
+    QuestionReadOriginEnum:
+      enum:
+      - official
+      - ai
+      - manual
+      type: string
+      description: |-
+        * `official` - Official
+        * `ai` - AI Generated
+        * `manual` - Manual
+    QuestionStatRead:
+      type: object
+      properties:
+        question_id:
+          type: string
+          format: uuid
+          readOnly: true
+        attempts:
+          type: integer
+          readOnly: true
+        correct:
+          type: integer
+          readOnly: true
+        success_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        avg_time_seconds:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,6}(?:\.\d{0,2})?$
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - attempts
+      - avg_time_seconds
+      - correct
+      - question_id
+      - success_rate
+      - updated_at
+    RecentActivity:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        attempt_type:
+          type: string
+        score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,5}(?:\.\d{0,2})?$
+          nullable: true
+        max_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,5}(?:\.\d{0,2})?$
+          nullable: true
+        correct:
+          type: integer
+        incorrect:
+          type: integer
+        accuracy:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - accuracy
+      - attempt_type
+      - correct
+      - created_at
+      - id
+      - incorrect
+      - max_score
+      - score
+    Recommendation:
+      type: object
+      properties:
+        topic_id:
+          type: string
+          format: uuid
+        topic_name:
+          type: string
+        subject_name:
+          type: string
+        accuracy:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        severity:
+          type: integer
+        recommended_action:
+          type: string
+      required:
+      - accuracy
+      - recommended_action
+      - severity
+      - subject_name
+      - topic_id
+      - topic_name
+    RegistrationRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        password:
+          type: string
+          writeOnly: true
+          minLength: 8
+        password_confirm:
+          type: string
+          writeOnly: true
+          minLength: 1
+        phone_e164:
+          type: string
+          maxLength: 20
+        preferred_language:
+          allOf:
+          - $ref: '#/components/schemas/PreferredLanguageEnum'
+          default: as
+      required:
+      - email
+      - full_name
+      - password
+      - password_confirm
+    ReleaseClaimRequest:
+      type: object
+      properties:
+        question_id:
+          type: string
+          format: uuid
+      required:
+      - question_id
+    ResendVerificationRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+      required:
+      - email
+    ReviewActionRequest:
+      type: object
+      properties:
+        comment:
+          type: string
+          default: ''
+    ReviewStatusEnum:
+      enum:
+      - draft
+      - in_review
+      - sme_review
+      - approved
+      - published
+      - rejected
+      type: string
+      description: |-
+        * `draft` - Draft
+        * `in_review` - In Review
+        * `sme_review` - SME Review
+        * `approved` - Approved
+        * `published` - Published
+        * `rejected` - Rejected
+    ScoredAttemptDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        user_id:
+          type: string
+          format: uuid
+          readOnly: true
+        exam_id:
+          type: string
+          format: uuid
+          readOnly: true
+        mock_test_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        attempt_type:
+          allOf:
+          - $ref: '#/components/schemas/AttemptTypeAf7Enum'
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/Status3c9Enum'
+          readOnly: true
+        started_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        duration_seconds:
+          type: integer
+          readOnly: true
+          nullable: true
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        total_questions:
+          type: integer
+          readOnly: true
+        score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,5}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        max_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,5}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        correct:
+          type: integer
+          readOnly: true
+        incorrect:
+          type: integer
+          readOnly: true
+        skipped:
+          type: integer
+          readOnly: true
+        accuracy:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        time_taken_seconds:
+          type: integer
+          readOnly: true
+          nullable: true
+        answers:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserAnswerRead'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - accuracy
+      - answers
+      - attempt_type
+      - correct
+      - created_at
+      - duration_seconds
+      - exam_id
+      - id
+      - incorrect
+      - max_score
+      - mock_test_id
+      - score
+      - skipped
+      - started_at
+      - status
+      - submitted_at
+      - time_taken_seconds
+      - total_questions
+      - updated_at
+      - user_id
+    Status3c9Enum:
+      enum:
+      - created
+      - in_progress
+      - submitted
+      - scored
+      type: string
+      description: |-
+        * `created` - Created
+        * `in_progress` - In Progress
+        * `submitted` - Submitted
+        * `scored` - Scored
+    SubjectCreateRequest:
+      type: object
+      properties:
+        exam_id:
+          type: string
+          format: uuid
+          description: ID of the parent exam
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+      required:
+      - exam_id
+      - name
+    SubjectHierarchy:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        topics:
+          type: array
+          items:
+            $ref: '#/components/schemas/TopicHierarchy'
+          readOnly: true
+      required:
+      - id
+      - name
+      - topics
+    SubjectRead:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        exam_id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+      required:
+      - exam_id
+      - id
+      - name
+    SubtopicCreateRequest:
+      type: object
+      properties:
+        topic_id:
+          type: string
+          format: uuid
+          description: ID of the parent topic
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+      required:
+      - name
+      - topic_id
+    SubtopicNested:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 150
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+      required:
+      - id
+      - name
+    SubtopicRead:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        topic_id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 150
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+      required:
+      - id
+      - name
+      - topic_id
+    SyllabusItemCreateRequest:
+      type: object
+      properties:
+        exam_id:
+          type: string
+          format: uuid
+          description: ID of the parent exam
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        parent_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID of the parent syllabus item
+        topic_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID of the related topic
+        subtopic_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID of the related subtopic
+        description:
+          type: string
+        weightage:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+      required:
+      - exam_id
+      - title
+    SyllabusItemRead:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        exam_id:
+          type: string
+          format: uuid
+          readOnly: true
+        parent_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        topic_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        subtopic_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        weightage:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+      required:
+      - exam_id
+      - id
+      - parent_id
+      - subtopic_id
+      - title
+      - topic_id
+    TopicCreateRequest:
+      type: object
+      properties:
+        subject_id:
+          type: string
+          format: uuid
+          description: ID of the parent subject
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+      required:
+      - name
+      - subject_id
+    TopicHierarchy:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 150
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        subtopics:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubtopicNested'
+          readOnly: true
+      required:
+      - id
+      - name
+      - subtopics
+    TopicRead:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        subject_id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 150
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+      required:
+      - id
+      - name
+      - subject_id
+    UserAnswerBulkSaveRequest:
+      type: object
+      properties:
+        answers:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserAnswerSaveRequest'
+      required:
+      - answers
+    UserAnswerRead:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        attempt_id:
+          type: string
+          format: uuid
+          readOnly: true
+        question_id:
+          type: string
+          format: uuid
+          readOnly: true
+        selected_option_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        state:
+          allOf:
+          - $ref: '#/components/schemas/UserAnswerReadStateEnum'
+          readOnly: true
+        is_correct:
+          type: boolean
+          readOnly: true
+          nullable: true
+        time_spent_seconds:
+          type: integer
+          readOnly: true
+        answered_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - answered_at
+      - attempt_id
+      - created_at
+      - id
+      - is_correct
+      - question_id
+      - selected_option_id
+      - state
+      - time_spent_seconds
+    UserAnswerReadStateEnum:
+      enum:
+      - not_visited
+      - visited
+      - answered
+      - marked
+      - answered_marked
+      type: string
+      description: |-
+        * `not_visited` - Not Visited
+        * `visited` - Visited
+        * `answered` - Answered
+        * `marked` - Marked
+        * `answered_marked` - Answered & Marked
+    UserAnswerSaveRequest:
+      type: object
+      properties:
+        question_id:
+          type: string
+          format: uuid
+          description: ID of the question being answered
+        selected_option_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID of the selected option (null to clear)
+        state:
+          allOf:
+          - $ref: '#/components/schemas/UserAnswerSaveStateEnum'
+          default: answered
+          description: |-
+            Current state of the answer
+
+            * `not_visited` - not_visited
+            * `visited` - visited
+            * `answered` - answered
+            * `marked` - marked
+            * `answered_marked` - answered_marked
+        time_spent_seconds:
+          type: integer
+          default: 0
+      required:
+      - question_id
+    UserAnswerSaveStateEnum:
+      enum:
+      - not_visited
+      - visited
+      - answered
+      - marked
+      - answered_marked
+      type: string
+      description: |-
+        * `not_visited` - not_visited
+        * `visited` - visited
+        * `answered` - answered
+        * `marked` - marked
+        * `answered_marked` - answered_marked
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        full_name:
+          type: string
+          maxLength: 150
+        phone_e164:
+          type: string
+          nullable: true
+          maxLength: 20
+        preferred_language:
+          type: string
+          maxLength: 10
+        target_exam_id:
+          type: string
+          format: uuid
+          nullable: true
+          readOnly: true
+        exam_date:
+          type: string
+          format: date
+          nullable: true
+        is_minor:
+          type: boolean
+        status:
+          allOf:
+          - $ref: '#/components/schemas/UserProfileStatusEnum'
+          readOnly: true
+        is_email_verified:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - email
+      - full_name
+      - id
+      - is_email_verified
+      - status
+      - target_exam_id
+    UserProfileStatusEnum:
+      enum:
+      - pending
+      - active
+      - suspended
+      - deleted
+      type: string
+      description: |-
+        * `pending` - pending
+        * `active` - active
+        * `suspended` - suspended
+        * `deleted` - deleted
+    VerifyEmailRequest:
+      type: object
+      properties:
+        token:
+          type: string
+          minLength: 1
+      required:
+      - token
+    WeakTopic:
+      type: object
+      properties:
+        topic_id:
+          type: string
+          format: uuid
+        topic_name:
+          type: string
+        accuracy:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        severity:
+          type: integer
+        status:
+          type: string
+      required:
+      - accuracy
+      - severity
+      - status
+      - topic_id
+      - topic_name
+  securitySchemes:
+    cookieJWT:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token set as httpOnly cookie by the login endpoint.

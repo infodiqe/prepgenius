@@ -6,10 +6,11 @@ urlpatterns: list = [
     path("", include("exams.api.urls")),
     path("", include("questions.api.urls")),
     path("attempts/", include("attempts.api.urls")),
-    # path("analytics/", include("analytics.api.urls")),
+    path("", include("analytics.api.urls")),
     # path("ai/", include("ai.api.urls")),
     # path("credits/", include("credits.api.urls")),
     # path("notifications/", include("notifications.api.urls")),
     # path("institutions/", include("institutions.api.urls")),
     path("", include("content_review.api.urls")),
 ]
+

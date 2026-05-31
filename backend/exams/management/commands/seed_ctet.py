@@ -50,6 +50,7 @@ EXAM_DATA = {
         "per_section_minimum": 0,
     },
     "analytics_rules": {
+        "weak_topic_threshold": 60,
         "readiness_score_weights": {
             "mock_performance": 40,
             "subject_accuracy": 25,

@@ -16,6 +16,7 @@ from .question_services import (
     update_question_option,
     update_question_review_status,
     update_question_stats,
+    recalculate_question_stats,
 )
 
 __all__ = [
@@ -36,4 +37,5 @@ __all__ = [
     "update_question_option",
     "update_question_review_status",
     "update_question_stats",
+    "recalculate_question_stats",
 ]

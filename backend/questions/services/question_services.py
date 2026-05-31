@@ -480,6 +480,60 @@ def update_question_stats(
     return stat
 
 
+def recalculate_question_stats(*, question_id: UUID) -> QuestionStat:
+    """Recalculates question statistics based on all user answers under scored attempts.
+
+    This is fully idempotent and safe to run concurrently due to select_for_update lock.
+    """
+    try:
+        question = get_question_by_id(question_id=question_id)
+    except Question.DoesNotExist:
+        raise QuestionNotFoundError(str(question_id))
+
+    with transaction.atomic():
+        stat, created = QuestionStat.objects.get_or_create(question=question)
+        stat = QuestionStat.objects.select_for_update().get(question=question)
+
+        from attempts.models import UserAnswer
+        from django.db.models import Count, Q, Avg
+
+        res = UserAnswer.objects.filter(
+            question_id=question_id,
+            attempt__status="scored",
+            state__in=["answered", "answered_marked"],
+        ).aggregate(
+            total_attempts=Count("id"),
+            total_correct=Count("id", filter=Q(is_correct=True)),
+            avg_time=Avg("time_spent_seconds"),
+        )
+
+        attempts = res["total_attempts"] or 0
+        correct = res["total_correct"] or 0
+        avg_time = res["avg_time"] or 0
+
+        stat.attempts = attempts
+        stat.correct = correct
+        stat.success_rate = (
+            Decimal(str(round((correct / attempts) * 100, 2)))
+            if attempts > 0
+            else Decimal("0.00")
+        )
+        stat.avg_time_seconds = (
+            Decimal(str(round(avg_time, 2))) if avg_time else Decimal("0.00")
+        )
+        stat.save(
+            update_fields=[
+                "attempts",
+                "correct",
+                "success_rate",
+                "avg_time_seconds",
+            ]
+        )
+        stat.refresh_from_db()
+
+    return stat
+
+
 def create_ai_generated_question(
     *,
     exam_id: UUID,

@@ -338,7 +338,7 @@ def score_attempt(*, attempt_id: UUID) -> ExamAttempt:
 
     with transaction.atomic():
         answers = list(
-            attempt.answers.select_related("question").all()
+            attempt.answers.select_related("question__subtopic__topic__subject").all()
         )
         exam_rules = attempt.exam.exam_rules or {}
         default_correct_marks = _marks_per_correct(exam_rules)
@@ -395,6 +395,19 @@ def score_attempt(*, attempt_id: UUID) -> ExamAttempt:
                 "status",
             ]
         )
+        # Compute subject and topic section analytics synchronously
+        from analytics.services.section_analytics import compute_section_analytics
+        compute_section_analytics(attempt=attempt, answers=answers)
+
+        # Enqueue rollup analytics task to run asynchronously after the transaction commits
+        from analytics.tasks import update_analytics_rollups
+        transaction.on_commit(
+            lambda: update_analytics_rollups.apply_async(
+                kwargs={"attempt_id": str(attempt.id)},
+                queue="analytics",
+            )
+        )
+
         attempt.refresh_from_db()
 
     return attempt
