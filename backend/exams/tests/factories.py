@@ -1,0 +1,73 @@
+import factory
+from factory.django import DjangoModelFactory
+
+from exams.models import Exam, PreviousYearPaper, Subject, Subtopic, SyllabusItem, Topic
+
+
+class ExamFactory(DjangoModelFactory):
+    class Meta:
+        model = Exam
+        django_get_or_create = ("code",)
+        skip_postgeneration_save = True
+
+    code = factory.Sequence(lambda n: f"EXAM_{n:04d}")
+    name = factory.Faker("sentence", nb_words=3)
+    exam_type = "qualifying"
+    is_active = True
+
+
+class InactiveExamFactory(ExamFactory):
+    is_active = False
+
+
+class SubjectFactory(DjangoModelFactory):
+    class Meta:
+        model = Subject
+        skip_postgeneration_save = True
+
+    exam = factory.SubFactory(ExamFactory)
+    name = factory.Sequence(lambda n: f"Subject {n}")
+    position = factory.Sequence(lambda n: n)
+
+
+class TopicFactory(DjangoModelFactory):
+    class Meta:
+        model = Topic
+        skip_postgeneration_save = True
+
+    subject = factory.SubFactory(SubjectFactory)
+    name = factory.Sequence(lambda n: f"Topic {n}")
+    position = factory.Sequence(lambda n: n)
+
+
+class SubtopicFactory(DjangoModelFactory):
+    class Meta:
+        model = Subtopic
+        skip_postgeneration_save = True
+
+    topic = factory.SubFactory(TopicFactory)
+    name = factory.Sequence(lambda n: f"Subtopic {n}")
+    position = factory.Sequence(lambda n: n)
+
+
+class SyllabusItemFactory(DjangoModelFactory):
+    class Meta:
+        model = SyllabusItem
+        skip_postgeneration_save = True
+
+    exam = factory.SubFactory(ExamFactory)
+    title = factory.Faker("sentence", nb_words=4)
+    description = factory.Faker("paragraph", nb_sentences=2)
+    position = factory.Sequence(lambda n: n)
+
+
+class PreviousYearPaperFactory(DjangoModelFactory):
+    class Meta:
+        model = PreviousYearPaper
+        skip_postgeneration_save = True
+
+    exam = factory.SubFactory(ExamFactory)
+    code = factory.Sequence(lambda n: f"PYP_{n:04d}")
+    year = 2024
+    language = "as"
+    total_questions = 150
