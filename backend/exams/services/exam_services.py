@@ -1,0 +1,716 @@
+import re
+from datetime import date
+from uuid import UUID
+
+from django.db import transaction
+
+from exams.exceptions import (
+    ExamCodeNotUniqueError,
+    ExamInvalidCodeError,
+    ExamNotFoundError,
+    InvalidLanguageCodeError,
+    InvalidYearError,
+    PaperNotUniqueError,
+    PreviousYearPaperNotFoundError,
+    SubjectNameNotUniqueError,
+    SubjectNotFoundError,
+    SubtopicNameNotUniqueError,
+    SubtopicNotFoundError,
+    SyllabusCycleError,
+    SyllabusDepthExceededError,
+    SyllabusItemNotFoundError,
+    SyllabusParentExamMismatchError,
+    SyllabusSubtopicHierarchyError,
+    SyllabusTopicHierarchyError,
+    TopicNameNotUniqueError,
+    TopicNotFoundError,
+)
+from exams.models import (
+    Exam,
+    PreviousYearPaper,
+    Subject,
+    Subtopic,
+    SyllabusItem,
+    Topic,
+)
+from exams.selectors.exam_selectors import (
+    get_exam_by_id,
+    get_previous_year_paper_by_id,
+    get_subject_by_id,
+    get_subtopic_by_id,
+    get_syllabus_item_by_id,
+    get_topic_by_id,
+)
+
+_EXAM_CODE_RE = re.compile(r"^[A-Z][A-Z0-9_]+$")
+_VALID_LANGUAGE_CODES = {"as", "en", "hi", "bn"}
+_SYLLABUS_MAX_DEPTH = 4
+_UNSET = object()
+
+
+# ── Helpers ──────────────────────────────────────────────────────────────────
+
+
+def _validate_exam_code(code: str) -> None:
+    if not _EXAM_CODE_RE.match(code):
+        raise ExamInvalidCodeError(code)
+
+
+def _validate_paper_year(year: int) -> None:
+    current_year = date.today().year
+    if year < 2000 or year > current_year + 1:
+        raise InvalidYearError(year)
+
+
+def _validate_language_code(code: str) -> None:
+    if code not in _VALID_LANGUAGE_CODES:
+        raise InvalidLanguageCodeError(code)
+
+
+def _get_syllabus_depth(item: SyllabusItem) -> int:
+    depth = 1
+    current = item
+    while current.parent is not None:
+        depth += 1
+        current = current.parent
+        if depth > _SYLLABUS_MAX_DEPTH + 5:
+            break
+    return depth
+
+
+def _check_syllabus_cycle(
+    item_id: UUID, proposed_parent_id: UUID | None
+) -> None:
+    if proposed_parent_id is None:
+        return
+    current = proposed_parent_id
+    # Walk parent chain; if we ever reach the item_id, there's a cycle
+    visited = set()
+    while current is not None:
+        if current == item_id:
+            raise SyllabusCycleError(str(item_id))
+        if current in visited:
+            break
+        visited.add(current)
+        try:
+            parent_item = SyllabusItem.objects.values_list(
+                "parent_id", flat=True
+            ).get(id=current)
+            current = parent_item
+        except SyllabusItem.DoesNotExist:
+            break
+
+
+def _validate_syllabus_parent_exam(
+    exam_id: UUID, parent_id: UUID | None
+) -> None:
+    if parent_id is None:
+        return
+    parent = get_syllabus_item_by_id(syllabus_item_id=parent_id)
+    if parent.exam_id != exam_id:
+        raise SyllabusParentExamMismatchError(str(parent_id), str(exam_id))
+
+
+def _validate_syllabus_topic_exam_hierarchy(
+    exam_id: UUID, topic_id: UUID | None
+) -> None:
+    if topic_id is None:
+        return
+    try:
+        topic = get_topic_by_id(topic_id=topic_id)
+    except Topic.DoesNotExist:
+        raise TopicNotFoundError(str(topic_id))
+    if topic.subject.exam_id != exam_id:
+        raise SyllabusTopicHierarchyError(str(topic_id), str(exam_id))
+
+
+def _validate_syllabus_subtopic_topic_hierarchy(
+    topic_id: UUID | None, subtopic_id: UUID | None
+) -> None:
+    if subtopic_id is None:
+        return
+    if topic_id is None:
+        raise SyllabusSubtopicHierarchyError(str(subtopic_id), "none")
+    try:
+        subtopic = get_subtopic_by_id(subtopic_id=subtopic_id)
+    except Subtopic.DoesNotExist:
+        raise SubtopicNotFoundError(str(subtopic_id))
+    if subtopic.topic_id != topic_id:
+        raise SyllabusSubtopicHierarchyError(
+            str(subtopic_id), str(topic_id)
+        )
+
+
+def _validate_syllabus_depth(
+    item_id: UUID | None, proposed_parent_id: UUID | None
+) -> None:
+    if proposed_parent_id is None:
+        return
+    parent = get_syllabus_item_by_id(syllabus_item_id=proposed_parent_id)
+    parent_depth = _get_syllabus_depth(parent)
+    if parent_depth + 1 > _SYLLABUS_MAX_DEPTH:
+        raise SyllabusDepthExceededError(_SYLLABUS_MAX_DEPTH)
+
+
+def _resolve_parent_id(
+    current_parent_id: UUID | None | object,
+    update_value: UUID | None | object,
+) -> tuple[UUID | None, bool]:
+    if update_value is _UNSET:
+        return current_parent_id, False
+    return update_value, True
+
+
+# ── Exam ─────────────────────────────────────────────────────────────────────
+
+
+def create_exam(
+    *,
+    code: str,
+    name: str,
+    exam_type: str,
+    difficulty_levels: list[str] | None = None,
+    exam_rules: dict | None = None,
+    blueprint: dict | None = None,
+    passing_criteria: dict | None = None,
+    analytics_rules: dict | None = None,
+    audience_is_minor: bool = False,
+    is_active: bool = True,
+) -> Exam:
+    _validate_exam_code(code)
+
+    if Exam.objects.filter(code=code).exists():
+        raise ExamCodeNotUniqueError(code)
+
+    with transaction.atomic():
+        exam = Exam.objects.create(
+            code=code,
+            name=name,
+            exam_type=exam_type,
+            difficulty_levels=difficulty_levels or ["easy", "medium", "hard"],
+            exam_rules=exam_rules or {},
+            blueprint=blueprint or {},
+            passing_criteria=passing_criteria or {},
+            analytics_rules=analytics_rules or {},
+            audience_is_minor=audience_is_minor,
+            is_active=is_active,
+        )
+
+    return exam
+
+
+def update_exam(
+    *,
+    exam_id: UUID,
+    code: str | None = None,
+    name: str | None = None,
+    exam_type: str | None = None,
+    difficulty_levels: list[str] | None = _UNSET,
+    exam_rules: dict | None = _UNSET,
+    blueprint: dict | None = _UNSET,
+    passing_criteria: dict | None = _UNSET,
+    analytics_rules: dict | None = _UNSET,
+    audience_is_minor: bool | None = None,
+) -> Exam:
+    try:
+        exam = get_exam_by_id(exam_id=exam_id)
+    except Exam.DoesNotExist:
+        raise ExamNotFoundError(str(exam_id))
+
+    update_fields: list[str] = []
+
+    if code is not None:
+        _validate_exam_code(code)
+        if Exam.objects.filter(code=code).exclude(id=exam_id).exists():
+            raise ExamCodeNotUniqueError(code)
+        exam.code = code
+        update_fields.append("code")
+
+    if name is not None:
+        exam.name = name
+        update_fields.append("name")
+
+    if exam_type is not None:
+        exam.exam_type = exam_type
+        update_fields.append("exam_type")
+
+    if difficulty_levels is not _UNSET:
+        exam.difficulty_levels = difficulty_levels or ["easy", "medium", "hard"]
+        update_fields.append("difficulty_levels")
+
+    if exam_rules is not _UNSET:
+        exam.exam_rules = exam_rules or {}
+        update_fields.append("exam_rules")
+
+    if blueprint is not _UNSET:
+        exam.blueprint = blueprint or {}
+        update_fields.append("blueprint")
+
+    if passing_criteria is not _UNSET:
+        exam.passing_criteria = passing_criteria or {}
+        update_fields.append("passing_criteria")
+
+    if analytics_rules is not _UNSET:
+        exam.analytics_rules = analytics_rules or {}
+        update_fields.append("analytics_rules")
+
+    if audience_is_minor is not None:
+        exam.audience_is_minor = audience_is_minor
+        update_fields.append("audience_is_minor")
+
+    if update_fields:
+        exam.save(update_fields=update_fields)
+        exam.refresh_from_db()
+
+    return exam
+
+
+def activate_exam(*, exam_id: UUID) -> Exam:
+    try:
+        exam = get_exam_by_id(exam_id=exam_id)
+    except Exam.DoesNotExist:
+        raise ExamNotFoundError(str(exam_id))
+
+    if not exam.is_active:
+        exam.is_active = True
+        exam.save(update_fields=["is_active"])
+        exam.refresh_from_db()
+
+    return exam
+
+
+def deactivate_exam(*, exam_id: UUID) -> Exam:
+    try:
+        exam = get_exam_by_id(exam_id=exam_id)
+    except Exam.DoesNotExist:
+        raise ExamNotFoundError(str(exam_id))
+
+    if exam.is_active:
+        exam.is_active = False
+        exam.save(update_fields=["is_active"])
+        exam.refresh_from_db()
+
+    return exam
+
+
+def delete_exam(*, exam_id: UUID) -> None:
+    deactivate_exam(exam_id=exam_id)
+
+
+# ── Subject ──────────────────────────────────────────────────────────────────
+
+
+def create_subject(
+    *,
+    exam_id: UUID,
+    name: str,
+    position: int = 0,
+) -> Subject:
+    try:
+        exam = get_exam_by_id(exam_id=exam_id)
+    except Exam.DoesNotExist:
+        raise ExamNotFoundError(str(exam_id))
+
+    if Subject.objects.filter(exam=exam, name=name).exists():
+        raise SubjectNameNotUniqueError(name, str(exam_id))
+
+    with transaction.atomic():
+        subject = Subject.objects.create(exam=exam, name=name, position=position)
+
+    return subject
+
+
+def update_subject(
+    *,
+    subject_id: UUID,
+    name: str | None = None,
+    position: int | None = None,
+) -> Subject:
+    try:
+        subject = get_subject_by_id(subject_id=subject_id)
+    except Subject.DoesNotExist:
+        raise SubjectNotFoundError(str(subject_id))
+
+    update_fields: list[str] = []
+
+    if name is not None:
+        if Subject.objects.filter(exam=subject.exam, name=name).exclude(
+            id=subject_id
+        ).exists():
+            raise SubjectNameNotUniqueError(name, str(subject.exam_id))
+        subject.name = name
+        update_fields.append("name")
+
+    if position is not None:
+        subject.position = position
+        update_fields.append("position")
+
+    if update_fields:
+        subject.save(update_fields=update_fields)
+        subject.refresh_from_db()
+
+    return subject
+
+
+def delete_subject(*, subject_id: UUID) -> None:
+    try:
+        subject = get_subject_by_id(subject_id=subject_id)
+    except Subject.DoesNotExist:
+        raise SubjectNotFoundError(str(subject_id))
+    subject.delete()
+
+
+# ── Topic ────────────────────────────────────────────────────────────────────
+
+
+def create_topic(
+    *,
+    subject_id: UUID,
+    name: str,
+    position: int = 0,
+) -> Topic:
+    try:
+        subject = get_subject_by_id(subject_id=subject_id)
+    except Subject.DoesNotExist:
+        raise SubjectNotFoundError(str(subject_id))
+
+    if Topic.objects.filter(subject=subject, name=name).exists():
+        raise TopicNameNotUniqueError(name, str(subject_id))
+
+    with transaction.atomic():
+        topic = Topic.objects.create(subject=subject, name=name, position=position)
+
+    return topic
+
+
+def update_topic(
+    *,
+    topic_id: UUID,
+    name: str | None = None,
+    position: int | None = None,
+) -> Topic:
+    try:
+        topic = get_topic_by_id(topic_id=topic_id)
+    except Topic.DoesNotExist:
+        raise TopicNotFoundError(str(topic_id))
+
+    update_fields: list[str] = []
+
+    if name is not None:
+        if Topic.objects.filter(subject=topic.subject, name=name).exclude(
+            id=topic_id
+        ).exists():
+            raise TopicNameNotUniqueError(name, str(topic.subject_id))
+        topic.name = name
+        update_fields.append("name")
+
+    if position is not None:
+        topic.position = position
+        update_fields.append("position")
+
+    if update_fields:
+        topic.save(update_fields=update_fields)
+        topic.refresh_from_db()
+
+    return topic
+
+
+def delete_topic(*, topic_id: UUID) -> None:
+    try:
+        topic = get_topic_by_id(topic_id=topic_id)
+    except Topic.DoesNotExist:
+        raise TopicNotFoundError(str(topic_id))
+    topic.delete()
+
+
+# ── Subtopic ─────────────────────────────────────────────────────────────────
+
+
+def create_subtopic(
+    *,
+    topic_id: UUID,
+    name: str,
+    position: int = 0,
+) -> Subtopic:
+    try:
+        topic = get_topic_by_id(topic_id=topic_id)
+    except Topic.DoesNotExist:
+        raise TopicNotFoundError(str(topic_id))
+
+    if Subtopic.objects.filter(topic=topic, name=name).exists():
+        raise SubtopicNameNotUniqueError(name, str(topic_id))
+
+    with transaction.atomic():
+        subtopic = Subtopic.objects.create(
+            topic=topic, name=name, position=position
+        )
+
+    return subtopic
+
+
+def update_subtopic(
+    *,
+    subtopic_id: UUID,
+    name: str | None = None,
+    position: int | None = None,
+) -> Subtopic:
+    try:
+        subtopic = get_subtopic_by_id(subtopic_id=subtopic_id)
+    except Subtopic.DoesNotExist:
+        raise SubtopicNotFoundError(str(subtopic_id))
+
+    update_fields: list[str] = []
+
+    if name is not None:
+        if Subtopic.objects.filter(topic=subtopic.topic, name=name).exclude(
+            id=subtopic_id
+        ).exists():
+            raise SubtopicNameNotUniqueError(name, str(subtopic.topic_id))
+        subtopic.name = name
+        update_fields.append("name")
+
+    if position is not None:
+        subtopic.position = position
+        update_fields.append("position")
+
+    if update_fields:
+        subtopic.save(update_fields=update_fields)
+        subtopic.refresh_from_db()
+
+    return subtopic
+
+
+def delete_subtopic(*, subtopic_id: UUID) -> None:
+    try:
+        subtopic = get_subtopic_by_id(subtopic_id=subtopic_id)
+    except Subtopic.DoesNotExist:
+        raise SubtopicNotFoundError(str(subtopic_id))
+    subtopic.delete()
+
+
+# ── Syllabus Item ────────────────────────────────────────────────────────────
+
+
+def create_syllabus_item(
+    *,
+    exam_id: UUID,
+    title: str,
+    parent_id: UUID | None = None,
+    topic_id: UUID | None = None,
+    subtopic_id: UUID | None = None,
+    description: str = "",
+    weightage: float | None = None,
+    position: int = 0,
+) -> SyllabusItem:
+    try:
+        exam = get_exam_by_id(exam_id=exam_id)
+    except Exam.DoesNotExist:
+        raise ExamNotFoundError(str(exam_id))
+
+    _validate_syllabus_parent_exam(exam_id, parent_id)
+    _validate_syllabus_depth(None, parent_id)
+    _validate_syllabus_topic_exam_hierarchy(exam_id, topic_id)
+    _validate_syllabus_subtopic_topic_hierarchy(topic_id, subtopic_id)
+
+    if parent_id is not None:
+        _check_syllabus_cycle(UUID(int=0), parent_id)
+
+    with transaction.atomic():
+        item = SyllabusItem.objects.create(
+            exam=exam,
+            title=title,
+            parent_id=parent_id,
+            topic_id=topic_id,
+            subtopic_id=subtopic_id,
+            description=description,
+            weightage=weightage,
+            position=position,
+        )
+
+    return item
+
+
+def update_syllabus_item(
+    *,
+    syllabus_item_id: UUID,
+    title: str | None = None,
+    parent_id: UUID | None | object = _UNSET,
+    topic_id: UUID | None | object = _UNSET,
+    subtopic_id: UUID | None | object = _UNSET,
+    description: str | None = None,
+    weightage: float | None | object = _UNSET,
+    position: int | None = None,
+) -> SyllabusItem:
+    try:
+        item = get_syllabus_item_by_id(syllabus_item_id=syllabus_item_id)
+    except SyllabusItem.DoesNotExist:
+        raise SyllabusItemNotFoundError(str(syllabus_item_id))
+
+    update_fields: list[str] = []
+
+    if title is not None:
+        item.title = title
+        update_fields.append("title")
+
+    resolved_parent_id, parent_changed = _resolve_parent_id(
+        item.parent_id, parent_id
+    )
+    if parent_changed:
+        _validate_syllabus_parent_exam(item.exam_id, resolved_parent_id)
+        _validate_syllabus_depth(syllabus_item_id, resolved_parent_id)
+        _check_syllabus_cycle(syllabus_item_id, resolved_parent_id)
+        item.parent_id = resolved_parent_id
+        update_fields.append("parent")
+
+    resolved_topic_id = topic_id
+    if topic_id is not _UNSET:
+        _validate_syllabus_topic_exam_hierarchy(
+            item.exam_id, resolved_topic_id
+        )
+        resolved_subtopic_id = (
+            subtopic_id if subtopic_id is not _UNSET else item.subtopic_id
+        )
+        _validate_syllabus_subtopic_topic_hierarchy(
+            resolved_topic_id, resolved_subtopic_id
+        )
+        item.topic_id = resolved_topic_id
+        update_fields.append("topic")
+
+    if subtopic_id is not _UNSET and topic_id is _UNSET:
+        resolved_subtopic_id = subtopic_id
+        _validate_syllabus_subtopic_topic_hierarchy(
+            item.topic_id, resolved_subtopic_id
+        )
+        item.subtopic_id = resolved_subtopic_id
+        update_fields.append("subtopic")
+
+    if description is not None:
+        item.description = description
+        update_fields.append("description")
+
+    if weightage is not _UNSET:
+        item.weightage = weightage
+        update_fields.append("weightage")
+
+    if position is not None:
+        item.position = position
+        update_fields.append("position")
+
+    if update_fields:
+        item.save(update_fields=update_fields)
+        item.refresh_from_db()
+
+    return item
+
+
+def delete_syllabus_item(*, syllabus_item_id: UUID) -> None:
+    try:
+        item = get_syllabus_item_by_id(syllabus_item_id=syllabus_item_id)
+    except SyllabusItem.DoesNotExist:
+        raise SyllabusItemNotFoundError(str(syllabus_item_id))
+    item.delete()
+
+
+# ── Previous Year Paper ──────────────────────────────────────────────────────
+
+
+def create_previous_year_paper(
+    *,
+    exam_id: UUID,
+    code: str,
+    year: int,
+    language: str = "as",
+    file_path: str | None = None,
+    total_questions: int = 0,
+) -> PreviousYearPaper:
+    try:
+        exam = get_exam_by_id(exam_id=exam_id)
+    except Exam.DoesNotExist:
+        raise ExamNotFoundError(str(exam_id))
+
+    _validate_paper_year(year)
+    _validate_language_code(language)
+
+    if PreviousYearPaper.objects.filter(
+        exam=exam, year=year, code=code
+    ).exists():
+        raise PaperNotUniqueError(str(exam_id), year, code)
+
+    with transaction.atomic():
+        paper = PreviousYearPaper.objects.create(
+            exam=exam,
+            code=code,
+            year=year,
+            language=language,
+            file_path=file_path,
+            total_questions=total_questions,
+        )
+
+    return paper
+
+
+def update_previous_year_paper(
+    *,
+    paper_id: UUID,
+    code: str | None = None,
+    year: int | None = None,
+    language: str | None = None,
+    file_path: str | None | object = _UNSET,
+    total_questions: int | None = None,
+) -> PreviousYearPaper:
+    try:
+        paper = get_previous_year_paper_by_id(paper_id=paper_id)
+    except PreviousYearPaper.DoesNotExist:
+        raise PreviousYearPaperNotFoundError(str(paper_id))
+
+    update_fields: list[str] = []
+
+    if code is not None:
+        if PreviousYearPaper.objects.filter(
+            exam=paper.exam, year=year or paper.year, code=code
+        ).exclude(id=paper_id).exists():
+            raise PaperNotUniqueError(
+                str(paper.exam_id), year or paper.year, code
+            )
+        paper.code = code
+        update_fields.append("code")
+
+    if year is not None:
+        _validate_paper_year(year)
+        if code is not None:
+            pass
+        elif PreviousYearPaper.objects.filter(
+            exam=paper.exam, year=year, code=paper.code
+        ).exclude(id=paper_id).exists():
+            raise PaperNotUniqueError(
+                str(paper.exam_id), year, paper.code
+            )
+        paper.year = year
+        update_fields.append("year")
+
+    if language is not None:
+        _validate_language_code(language)
+        paper.language = language
+        update_fields.append("language")
+
+    if file_path is not _UNSET:
+        paper.file_path = file_path
+        update_fields.append("file_path")
+
+    if total_questions is not None:
+        paper.total_questions = total_questions
+        update_fields.append("total_questions")
+
+    if update_fields:
+        paper.save(update_fields=update_fields)
+        paper.refresh_from_db()
+
+    return paper
+
+
+def delete_previous_year_paper(*, paper_id: UUID) -> None:
+    try:
+        paper = get_previous_year_paper_by_id(paper_id=paper_id)
+    except PreviousYearPaper.DoesNotExist:
+        raise PreviousYearPaperNotFoundError(str(paper_id))
+    paper.delete()

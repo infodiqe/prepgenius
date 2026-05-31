@@ -14,6 +14,7 @@ urlpatterns = [
     path("api/v1/", include("config.api_router")),
 ]
 
-if settings.DEBUG:
-    import debug_toolbar
+if settings.DEBUG and "debug_toolbar" in settings.INSTALLED_APPS:
+    import debug_toolbar  # type: ignore[import-untyped]  # noqa: F811
+
     urlpatterns = [path("__debug__/", include(debug_toolbar.urls))] + urlpatterns

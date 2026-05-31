@@ -1,0 +1,560 @@
+import pytest
+from django.core.exceptions import ObjectDoesNotExist
+
+from exams.models import Exam, PreviousYearPaper, Subject, Subtopic, SyllabusItem, Topic
+
+pytestmark = pytest.mark.django_db
+
+
+class TestGetExamById:
+    def test_returns_exam(self, exam):
+        from exams.selectors.exam_selectors import get_exam_by_id
+
+        result = get_exam_by_id(exam_id=exam.id)
+        assert result.id == exam.id
+        assert result.code == exam.code
+
+    def test_raises_when_not_found(self):
+        from exams.selectors.exam_selectors import get_exam_by_id
+
+        with pytest.raises(Exam.DoesNotExist):
+            get_exam_by_id(exam_id="00000000-0000-0000-0000-000000000000")
+
+    def test_finds_inactive_too(self, inactive_exam):
+        from exams.selectors.exam_selectors import get_exam_by_id
+
+        result = get_exam_by_id(exam_id=inactive_exam.id)
+        assert result.id == inactive_exam.id
+        assert result.is_active is False
+
+    def test_uses_single_query(self, django_assert_num_queries, exam):
+        from exams.selectors.exam_selectors import get_exam_by_id
+
+        with django_assert_num_queries(1):
+            get_exam_by_id(exam_id=exam.id)
+
+
+class TestListActiveExams:
+    def test_returns_only_active(self):
+        from exams.selectors.exam_selectors import list_active_exams
+
+        active1 = Exam.objects.create(
+            code="ACTIVE1", name="Active 1", exam_type="qualifying"
+        )
+        active2 = Exam.objects.create(
+            code="ACTIVE2", name="Active 2", exam_type="qualifying"
+        )
+        Exam.objects.create(
+            code="INACTIVE", name="Inactive", exam_type="qualifying", is_active=False
+        )
+
+        results = list(list_active_exams())
+        assert len(results) == 2
+        assert active1 in results
+        assert active2 in results
+
+    def test_returns_empty_when_no_active(self):
+        from exams.selectors.exam_selectors import list_active_exams
+
+        Exam.objects.create(
+            code="INACTIVE", name="Inactive", exam_type="qualifying", is_active=False
+        )
+        assert list(list_active_exams()) == []
+
+    def test_orders_by_code(self):
+        from exams.selectors.exam_selectors import list_active_exams
+
+        Exam.objects.create(
+            code="B_EXAM", name="B Exam", exam_type="qualifying"
+        )
+        Exam.objects.create(
+            code="A_EXAM", name="A Exam", exam_type="qualifying"
+        )
+
+        results = list(list_active_exams())
+        assert results[0].code == "A_EXAM"
+        assert results[1].code == "B_EXAM"
+
+    def test_uses_single_query(self, django_assert_num_queries):
+        from exams.selectors.exam_selectors import list_active_exams
+
+        Exam.objects.create(
+            code="EXAM", name="Exam", exam_type="qualifying"
+        )
+        with django_assert_num_queries(1):
+            list(list_active_exams())
+
+
+class TestListExams:
+    def test_returns_all(self):
+        from exams.selectors.exam_selectors import list_exams
+
+        exam1 = Exam.objects.create(
+            code="E1", name="Exam 1", exam_type="qualifying"
+        )
+        exam2 = Exam.objects.create(
+            code="E2", name="Exam 2", exam_type="qualifying", is_active=False
+        )
+
+        results = list(list_exams())
+        assert len(results) == 2
+        assert exam1 in results
+        assert exam2 in results
+
+    def test_returns_empty(self):
+        from exams.selectors.exam_selectors import list_exams
+
+        assert list(list_exams()) == []
+
+    def test_uses_single_query(self, django_assert_num_queries):
+        from exams.selectors.exam_selectors import list_exams
+
+        Exam.objects.create(
+            code="EXAM", name="Exam", exam_type="qualifying"
+        )
+        with django_assert_num_queries(1):
+            list(list_exams())
+
+
+class TestGetSubjectById:
+    def test_returns_subject(self, subject):
+        from exams.selectors.exam_selectors import get_subject_by_id
+
+        result = get_subject_by_id(subject_id=subject.id)
+        assert result.id == subject.id
+        assert result.name == subject.name
+        assert result.exam_id == subject.exam_id
+
+    def test_raises_when_not_found(self):
+        from exams.selectors.exam_selectors import get_subject_by_id
+
+        with pytest.raises(Subject.DoesNotExist):
+            get_subject_by_id(subject_id="00000000-0000-0000-0000-000000000000")
+
+    def test_uses_single_query_with_join(self, django_assert_num_queries, subject):
+        from exams.selectors.exam_selectors import get_subject_by_id
+
+        with django_assert_num_queries(1):
+            result = get_subject_by_id(subject_id=subject.id)
+            _ = result.exam.id  # access related without extra query
+
+
+class TestListSubjectsForExam:
+    def test_returns_subjects_for_exam(self, exam):
+        from exams.selectors.exam_selectors import list_subjects_for_exam
+
+        subj1 = Subject.objects.create(exam=exam, name="Science", position=1)
+        subj2 = Subject.objects.create(exam=exam, name="Maths", position=2)
+        other = Subject.objects.create(
+            exam=Exam.objects.create(code="OTHER", name="Other", exam_type="qualifying"),
+            name="Other Subject",
+        )
+
+        results = list(list_subjects_for_exam(exam_id=exam.id))
+        assert len(results) == 2
+        assert subj1 in results
+        assert subj2 in results
+        assert other not in results
+
+    def test_orders_by_position(self, exam):
+        from exams.selectors.exam_selectors import list_subjects_for_exam
+
+        Subject.objects.create(exam=exam, name="Z Subject", position=2)
+        Subject.objects.create(exam=exam, name="A Subject", position=1)
+
+        results = list(list_subjects_for_exam(exam_id=exam.id))
+        assert results[0].name == "A Subject"
+        assert results[1].name == "Z Subject"
+
+    def test_empty(self, exam):
+        from exams.selectors.exam_selectors import list_subjects_for_exam
+
+        assert list(list_subjects_for_exam(exam_id=exam.id)) == []
+
+    def test_uses_single_query(self, django_assert_num_queries, exam):
+        from exams.selectors.exam_selectors import list_subjects_for_exam
+
+        Subject.objects.create(exam=exam, name="Science", position=1)
+        with django_assert_num_queries(1):
+            list(list_subjects_for_exam(exam_id=exam.id))
+
+
+class TestGetTopicById:
+    def test_returns_topic(self, topic):
+        from exams.selectors.exam_selectors import get_topic_by_id
+
+        result = get_topic_by_id(topic_id=topic.id)
+        assert result.id == topic.id
+        assert result.subject_id == topic.subject_id
+
+    def test_raises_when_not_found(self):
+        from exams.selectors.exam_selectors import get_topic_by_id
+
+        with pytest.raises(Topic.DoesNotExist):
+            get_topic_by_id(topic_id="00000000-0000-0000-0000-000000000000")
+
+    def test_uses_single_query_with_joined_fk(
+        self, django_assert_num_queries, topic
+    ):
+        from exams.selectors.exam_selectors import get_topic_by_id
+
+        with django_assert_num_queries(1):
+            result = get_topic_by_id(topic_id=topic.id)
+            _ = result.subject.exam.id  # two FK hops, no extra query
+
+
+class TestListTopicsForSubject:
+    def test_returns_topics_for_subject(self, subject):
+        from exams.selectors.exam_selectors import list_topics_for_subject
+
+        t1 = Topic.objects.create(subject=subject, name="Physics", position=1)
+        t2 = Topic.objects.create(subject=subject, name="Chemistry", position=2)
+        other = Topic.objects.create(
+            subject=Subject.objects.create(
+                exam=subject.exam, name="Other", position=3
+            ),
+            name="Other Topic",
+        )
+
+        results = list(list_topics_for_subject(subject_id=subject.id))
+        assert len(results) == 2
+        assert t1 in results
+        assert t2 in results
+        assert other not in results
+
+    def test_empty(self, subject):
+        from exams.selectors.exam_selectors import list_topics_for_subject
+
+        assert list(list_topics_for_subject(subject_id=subject.id)) == []
+
+    def test_uses_single_query(self, django_assert_num_queries, subject):
+        from exams.selectors.exam_selectors import list_topics_for_subject
+
+        Topic.objects.create(subject=subject, name="Physics", position=1)
+        with django_assert_num_queries(1):
+            list(list_topics_for_subject(subject_id=subject.id))
+
+
+class TestGetSubtopicById:
+    def test_returns_subtopic(self, subtopic):
+        from exams.selectors.exam_selectors import get_subtopic_by_id
+
+        result = get_subtopic_by_id(subtopic_id=subtopic.id)
+        assert result.id == subtopic.id
+        assert result.topic_id == subtopic.topic_id
+
+    def test_raises_when_not_found(self):
+        from exams.selectors.exam_selectors import get_subtopic_by_id
+
+        with pytest.raises(Subtopic.DoesNotExist):
+            get_subtopic_by_id(subtopic_id="00000000-0000-0000-0000-000000000000")
+
+    def test_uses_single_query_with_three_joins(
+        self, django_assert_num_queries, subtopic
+    ):
+        from exams.selectors.exam_selectors import get_subtopic_by_id
+
+        with django_assert_num_queries(1):
+            result = get_subtopic_by_id(subtopic_id=subtopic.id)
+            _ = result.topic.subject.exam.id  # three FK hops, no extra query
+
+
+class TestListSubtopicsForTopic:
+    def test_returns_subtopics_for_topic(self, topic):
+        from exams.selectors.exam_selectors import list_subtopics_for_topic
+
+        s1 = Subtopic.objects.create(topic=topic, name="Motion", position=1)
+        s2 = Subtopic.objects.create(topic=topic, name="Force", position=2)
+        other = Subtopic.objects.create(
+            topic=Topic.objects.create(
+                subject=topic.subject, name="Other Topic", position=3
+            ),
+            name="Other Subtopic",
+        )
+
+        results = list(list_subtopics_for_topic(topic_id=topic.id))
+        assert len(results) == 2
+        assert s1 in results
+        assert s2 in results
+        assert other not in results
+
+    def test_empty(self, topic):
+        from exams.selectors.exam_selectors import list_subtopics_for_topic
+
+        assert list(list_subtopics_for_topic(topic_id=topic.id)) == []
+
+    def test_uses_single_query(self, django_assert_num_queries, topic):
+        from exams.selectors.exam_selectors import list_subtopics_for_topic
+
+        Subtopic.objects.create(topic=topic, name="Motion", position=1)
+        with django_assert_num_queries(1):
+            list(list_subtopics_for_topic(topic_id=topic.id))
+
+
+class TestGetSyllabusItemById:
+    def test_returns_item(self, syllabus_item):
+        from exams.selectors.exam_selectors import get_syllabus_item_by_id
+
+        result = get_syllabus_item_by_id(syllabus_item_id=syllabus_item.id)
+        assert result.id == syllabus_item.id
+        assert result.title == syllabus_item.title
+
+    def test_raises_when_not_found(self):
+        from exams.selectors.exam_selectors import get_syllabus_item_by_id
+
+        with pytest.raises(SyllabusItem.DoesNotExist):
+            get_syllabus_item_by_id(
+                syllabus_item_id="00000000-0000-0000-0000-000000000000"
+            )
+
+    def test_uses_single_query_with_all_fks(
+        self, django_assert_num_queries, syllabus_item
+    ):
+        from exams.selectors.exam_selectors import get_syllabus_item_by_id
+
+        with django_assert_num_queries(1):
+            result = get_syllabus_item_by_id(syllabus_item_id=syllabus_item.id)
+            _ = result.exam.id
+            _ = result.topic.id
+            _ = result.subtopic.id
+
+
+class TestListSyllabusForExam:
+    def test_returns_syllabus_for_exam(self, exam, topic, subtopic):
+        from exams.selectors.exam_selectors import list_syllabus_for_exam
+
+        s1 = SyllabusItem.objects.create(
+            exam=exam, topic=topic, subtopic=subtopic,
+            title="Newton's Laws", position=1,
+        )
+        s2 = SyllabusItem.objects.create(
+            exam=exam, topic=topic, subtopic=subtopic,
+            title="Kinematics", position=2,
+        )
+        other = SyllabusItem.objects.create(
+            exam=Exam.objects.create(
+                code="OTHER", name="Other", exam_type="qualifying"
+            ),
+            title="Other Syllabus",
+        )
+
+        results = list(list_syllabus_for_exam(exam_id=exam.id))
+        assert len(results) == 2
+        assert s1 in results
+        assert s2 in results
+        assert other not in results
+
+    def test_empty(self, exam):
+        from exams.selectors.exam_selectors import list_syllabus_for_exam
+
+        assert list(list_syllabus_for_exam(exam_id=exam.id)) == []
+
+    def test_uses_single_query(self, django_assert_num_queries, exam, topic, subtopic):
+        from exams.selectors.exam_selectors import list_syllabus_for_exam
+
+        SyllabusItem.objects.create(
+            exam=exam, topic=topic, subtopic=subtopic,
+            title="Test", position=1,
+        )
+        with django_assert_num_queries(1):
+            list(list_syllabus_for_exam(exam_id=exam.id))
+
+
+class TestGetSyllabusTree:
+    def test_returns_root_items_with_children(self, exam):
+        from exams.selectors.exam_selectors import get_syllabus_tree
+
+        root = SyllabusItem.objects.create(
+            exam=exam, title="Root Unit", position=1,
+        )
+        child = SyllabusItem.objects.create(
+            exam=exam, parent=root, title="Child Topic", position=1,
+        )
+        SyllabusItem.objects.create(
+            exam=exam, parent=child, title="Grandchild", position=1,
+        )
+
+        roots = list(get_syllabus_tree(exam_id=exam.id))
+        assert len(roots) == 1
+        assert roots[0].title == "Root Unit"
+        children = list(roots[0].syllabusitem_set.all())
+        assert len(children) == 1
+        assert children[0].title == "Child Topic"
+
+    def test_empty(self, exam):
+        from exams.selectors.exam_selectors import get_syllabus_tree
+
+        assert list(get_syllabus_tree(exam_id=exam.id)) == []
+
+    def test_excludes_non_root_items(self, exam):
+        from exams.selectors.exam_selectors import get_syllabus_tree
+
+        SyllabusItem.objects.create(
+            exam=exam, title="Orphan Child", position=1,
+        )
+        SyllabusItem.objects.create(
+            exam=exam, title="Another Orphan", position=2,
+        )
+        # All items have no parent — they are all roots
+        results = list(get_syllabus_tree(exam_id=exam.id))
+        assert len(results) == 2
+
+    def test_uses_optimized_queries(
+        self, django_assert_num_queries, exam
+    ):
+        from exams.selectors.exam_selectors import get_syllabus_tree
+
+        root = SyllabusItem.objects.create(
+            exam=exam, title="Root", position=1
+        )
+        SyllabusItem.objects.create(
+            exam=exam, parent=root, title="Child", position=1
+        )
+
+        with django_assert_num_queries(2):
+            roots = list(get_syllabus_tree(exam_id=exam.id))
+            for r in roots:
+                list(r.syllabusitem_set.all())
+
+
+class TestGetPreviousYearPaperById:
+    def test_returns_paper(self, previous_year_paper):
+        from exams.selectors.exam_selectors import get_previous_year_paper_by_id
+
+        result = get_previous_year_paper_by_id(paper_id=previous_year_paper.id)
+        assert result.id == previous_year_paper.id
+        assert result.code == previous_year_paper.code
+
+    def test_raises_when_not_found(self):
+        from exams.selectors.exam_selectors import get_previous_year_paper_by_id
+
+        with pytest.raises(PreviousYearPaper.DoesNotExist):
+            get_previous_year_paper_by_id(
+                paper_id="00000000-0000-0000-0000-000000000000"
+            )
+
+    def test_uses_single_query_with_joins(
+        self, django_assert_num_queries, previous_year_paper
+    ):
+        from exams.selectors.exam_selectors import get_previous_year_paper_by_id
+
+        with django_assert_num_queries(1):
+            result = get_previous_year_paper_by_id(paper_id=previous_year_paper.id)
+            _ = result.exam.id  # joined, no extra query
+
+
+class TestListPreviousYearPapers:
+    def test_returns_all(self, exam):
+        from exams.selectors.exam_selectors import list_previous_year_papers
+
+        p1 = PreviousYearPaper.objects.create(
+            exam=exam, code="P1", year=2024, total_questions=100
+        )
+        p2 = PreviousYearPaper.objects.create(
+            exam=exam, code="P2", year=2023, total_questions=100
+        )
+
+        results = list(list_previous_year_papers())
+        assert len(results) == 2
+        assert p1 in results
+        assert p2 in results
+
+    def test_filters_by_exam(self, exam):
+        from exams.selectors.exam_selectors import list_previous_year_papers
+
+        p1 = PreviousYearPaper.objects.create(
+            exam=exam, code="P1", year=2024, total_questions=100
+        )
+        other_exam = Exam.objects.create(
+            code="OTHER", name="Other", exam_type="qualifying"
+        )
+        PreviousYearPaper.objects.create(
+            exam=other_exam, code="OP1", year=2024, total_questions=50
+        )
+
+        results = list(list_previous_year_papers(exam_id=exam.id))
+        assert len(results) == 1
+        assert results[0].id == p1.id
+
+    def test_orders_by_year_desc_then_code(self, exam):
+        from exams.selectors.exam_selectors import list_previous_year_papers
+
+        p_older = PreviousYearPaper.objects.create(
+            exam=exam, code="PAPER_2023", year=2023, total_questions=100
+        )
+        p_newer = PreviousYearPaper.objects.create(
+            exam=exam, code="PAPER_2024", year=2024, total_questions=100
+        )
+
+        results = list(list_previous_year_papers())
+        assert results[0].id == p_newer.id
+        assert results[1].id == p_older.id
+
+    def test_empty(self):
+        from exams.selectors.exam_selectors import list_previous_year_papers
+
+        assert list(list_previous_year_papers()) == []
+
+    def test_uses_single_query(self, django_assert_num_queries, exam):
+        from exams.selectors.exam_selectors import list_previous_year_papers
+
+        PreviousYearPaper.objects.create(
+            exam=exam, code="P1", year=2024, total_questions=100
+        )
+        with django_assert_num_queries(1):
+            list(list_previous_year_papers())
+
+
+class TestGetCompleteExamHierarchy:
+    def test_returns_subjects_with_topics_and_subtopics(self, exam):
+        from exams.selectors.exam_selectors import get_complete_exam_hierarchy
+
+        science = Subject.objects.create(exam=exam, name="Science", position=1)
+        physics = Topic.objects.create(subject=science, name="Physics", position=1)
+        motion = Subtopic.objects.create(topic=physics, name="Motion", position=1)
+
+        results = list(get_complete_exam_hierarchy(exam_id=exam.id))
+        assert len(results) == 1
+        assert results[0].name == "Science"
+
+        topics = list(results[0].topics.all())
+        assert len(topics) == 1
+        assert topics[0].name == "Physics"
+
+        subtopics = list(topics[0].subtopics.all())
+        assert len(subtopics) == 1
+        assert subtopics[0].name == "Motion"
+
+    def test_empty(self, exam):
+        from exams.selectors.exam_selectors import get_complete_exam_hierarchy
+
+        results = list(get_complete_exam_hierarchy(exam_id=exam.id))
+        assert results == []
+
+    def test_filters_by_exam(self, exam):
+        from exams.selectors.exam_selectors import get_complete_exam_hierarchy
+
+        Subject.objects.create(exam=exam, name="Science", position=1)
+        other = Exam.objects.create(
+            code="OTHER", name="Other", exam_type="qualifying"
+        )
+        Subject.objects.create(exam=other, name="Other Subject", position=1)
+
+        results = list(get_complete_exam_hierarchy(exam_id=exam.id))
+        assert len(results) == 1
+
+    def test_uses_three_queries(
+        self, django_assert_num_queries, exam
+    ):
+        from exams.selectors.exam_selectors import get_complete_exam_hierarchy
+
+        science = Subject.objects.create(exam=exam, name="Science", position=1)
+        physics = Topic.objects.create(subject=science, name="Physics", position=1)
+        Subtopic.objects.create(topic=physics, name="Motion", position=1)
+
+        with django_assert_num_queries(3):
+            results = list(get_complete_exam_hierarchy(exam_id=exam.id))
+            for subject in results:
+                list(subject.topics.all())
+                for topic in subject.topics.all():
+                    list(topic.subtopics.all())

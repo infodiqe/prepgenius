@@ -1,0 +1,1770 @@
+openapi: 3.0.3
+info:
+  title: PrepGenius API
+  version: v1
+  description: PrepGenius Competitive Exam Platform API
+paths:
+  /api/v1/auth/account/delete/:
+    delete:
+      operationId: auth_account_delete
+      summary: Delete (anonymize) user account
+      tags:
+      - auth
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          description: Account deleted. Auth cookies cleared.
+        '400':
+          description: Incorrect password
+  /api/v1/auth/data/export/:
+    post:
+      operationId: auth_data_export
+      summary: Request a data export (GDPR/DPDP)
+      tags:
+      - auth
+      security:
+      - cookieJWT: []
+      responses:
+        '202':
+          description: Data export queued. An email will be sent when ready.
+  /api/v1/auth/login/:
+    post:
+      operationId: auth_login
+      summary: Log in with email and password
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      - {}
+      responses:
+        '200':
+          description: Login successful. Access and refresh tokens set as httpOnly
+            cookies.
+        '401':
+          description: Invalid credentials
+  /api/v1/auth/logout/:
+    post:
+      operationId: auth_logout
+      summary: Log out and blacklist refresh token
+      tags:
+      - auth
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          description: Logged out. Auth cookies cleared.
+  /api/v1/auth/password/confirm/:
+    post:
+      operationId: auth_password_reset_confirm
+      summary: Confirm password reset with token
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirmRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirmRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirmRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      - {}
+      responses:
+        '200':
+          description: Password reset successfully.
+        '400':
+          description: Invalid or expired token, or weak password
+  /api/v1/auth/password/reset/:
+    post:
+      operationId: auth_password_reset_request
+      summary: Request password reset email
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequestRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      - {}
+      responses:
+        '200':
+          description: If the account exists, a reset link has been sent.
+  /api/v1/auth/profile/:
+    get:
+      operationId: auth_get_profile
+      summary: Get current user profile
+      tags:
+      - auth
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+          description: ''
+    patch:
+      operationId: auth_update_profile
+      summary: Update current user profile
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUpdateProfileRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUpdateProfileRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUpdateProfileRequest'
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+          description: ''
+        '400':
+          description: Validation error
+  /api/v1/auth/register/:
+    post:
+      operationId: auth_register
+      summary: Register a new user account
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistrationRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RegistrationRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RegistrationRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      - {}
+      responses:
+        '201':
+          description: Registration successful. Verification email sent.
+        '400':
+          description: Validation error
+  /api/v1/auth/resend-verification/:
+    post:
+      operationId: auth_resend_verification
+      summary: Resend email verification link
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResendVerificationRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ResendVerificationRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ResendVerificationRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      - {}
+      responses:
+        '200':
+          description: If the account exists and is unverified, a new link has been
+            sent.
+  /api/v1/auth/token/refresh/:
+    post:
+      operationId: auth_token_refresh
+      summary: Refresh access token using refresh cookie
+      tags:
+      - auth
+      security:
+      - cookieJWT: []
+      - {}
+      responses:
+        '200':
+          description: Token refreshed. New access/refresh tokens set as httpOnly
+            cookies.
+        '401':
+          description: Invalid or expired refresh token
+  /api/v1/auth/verify-email/:
+    post:
+      operationId: auth_verify_email
+      summary: Verify email address with token
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      - {}
+      responses:
+        '200':
+          description: Email verified successfully.
+        '400':
+          description: Invalid or expired token
+  /api/v1/exams/:
+    get:
+      operationId: v1_exams_list
+      description: Retrieve all exam configurations. Returns an array of exam objects.
+      summary: List exams
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExamRead'
+          description: ''
+    post:
+      operationId: v1_exams_create
+      description: Create a new exam configuration. Requires content_manager or platform_admin
+        role.
+      summary: Create exam
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExamCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ExamCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ExamCreateRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExamRead'
+          description: ''
+  /api/v1/exams/{exam_pk}/subjects/:
+    get:
+      operationId: v1_exams_subjects_list
+      description: Retrieve all subjects belonging to an exam.
+      summary: List subjects for exam
+      parameters:
+      - in: path
+        name: exam_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SubjectRead'
+          description: ''
+  /api/v1/exams/{exam_pk}/syllabus/:
+    get:
+      operationId: v1_exams_syllabus_list
+      description: Retrieve all syllabus items for an exam.
+      summary: List syllabus for exam
+      parameters:
+      - in: path
+        name: exam_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SyllabusItemRead'
+          description: ''
+  /api/v1/exams/{id}/:
+    get:
+      operationId: v1_exams_retrieve
+      description: Get a single exam configuration by ID.
+      summary: Retrieve exam
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExamRead'
+          description: ''
+    patch:
+      operationId: v1_exams_partial_update
+      description: Partially update an exam configuration. Requires content_manager
+        or platform_admin role.
+      summary: Update exam
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedExamUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedExamUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedExamUpdateRequest'
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExamRead'
+          description: ''
+  /api/v1/exams/{id}/activate/:
+    post:
+      operationId: v1_exams_activate_create
+      description: Activate an exam configuration. Requires platform_admin role only.
+      summary: Activate exam
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExamRead'
+          description: ''
+  /api/v1/exams/{id}/deactivate/:
+    post:
+      operationId: v1_exams_deactivate_create
+      description: Deactivate an exam configuration. Requires platform_admin role
+        only.
+      summary: Deactivate exam
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExamRead'
+          description: ''
+  /api/v1/exams/{id}/tree/:
+    get:
+      operationId: v1_exams_tree_retrieve
+      description: Retrieve exam with nested subjects, topics, and subtopics in a
+        single tree structure.
+      summary: Exam hierarchy tree
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExamHierarchy'
+          description: ''
+  /api/v1/papers/:
+    get:
+      operationId: v1_papers_list
+      description: Retrieve previous year papers. Optionally filter by exam_id query
+        parameter.
+      summary: List previous year papers
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PreviousYearPaperRead'
+          description: ''
+    post:
+      operationId: v1_papers_create
+      description: Create a new previous year paper. Requires content_manager or platform_admin
+        role.
+      summary: Create previous year paper
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreviousYearPaperCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PreviousYearPaperCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PreviousYearPaperCreateRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreviousYearPaperRead'
+          description: ''
+  /api/v1/papers/{id}/:
+    get:
+      operationId: v1_papers_retrieve
+      description: Get a single previous year paper by ID.
+      summary: Retrieve previous year paper
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreviousYearPaperRead'
+          description: ''
+    patch:
+      operationId: v1_papers_partial_update
+      description: Partially update a previous year paper. Requires content_manager
+        or platform_admin role.
+      summary: Update previous year paper
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedPreviousYearPaperUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedPreviousYearPaperUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedPreviousYearPaperUpdateRequest'
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreviousYearPaperRead'
+          description: ''
+  /api/v1/subjects/:
+    post:
+      operationId: v1_subjects_create
+      description: Create a new subject under an exam. Requires content_manager or
+        platform_admin role.
+      summary: Create subject
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubjectCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SubjectCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SubjectCreateRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubjectRead'
+          description: ''
+  /api/v1/subjects/{id}/:
+    get:
+      operationId: v1_subjects_retrieve
+      description: Get a single subject by ID.
+      summary: Retrieve subject
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubjectRead'
+          description: ''
+    patch:
+      operationId: v1_subjects_partial_update
+      description: Partially update a subject. Requires content_manager or platform_admin
+        role.
+      summary: Update subject
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSubjectUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedSubjectUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedSubjectUpdateRequest'
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubjectRead'
+          description: ''
+  /api/v1/subjects/{subject_pk}/topics/:
+    get:
+      operationId: v1_subjects_topics_list
+      description: Retrieve all topics belonging to a subject.
+      summary: List topics for subject
+      parameters:
+      - in: path
+        name: subject_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TopicRead'
+          description: ''
+  /api/v1/subtopics/:
+    post:
+      operationId: v1_subtopics_create
+      description: Create a new subtopic under a topic. Requires content_manager or
+        platform_admin role.
+      summary: Create subtopic
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubtopicCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SubtopicCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SubtopicCreateRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubtopicRead'
+          description: ''
+  /api/v1/subtopics/{id}/:
+    get:
+      operationId: v1_subtopics_retrieve
+      description: Get a single subtopic by ID.
+      summary: Retrieve subtopic
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubtopicRead'
+          description: ''
+    patch:
+      operationId: v1_subtopics_partial_update
+      description: Partially update a subtopic. Requires content_manager or platform_admin
+        role.
+      summary: Update subtopic
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSubtopicUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedSubtopicUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedSubtopicUpdateRequest'
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubtopicRead'
+          description: ''
+  /api/v1/syllabus/:
+    post:
+      operationId: v1_syllabus_create
+      description: Create a new syllabus item for an exam. Requires content_manager
+        or platform_admin role.
+      summary: Create syllabus item
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SyllabusItemCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SyllabusItemCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SyllabusItemCreateRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyllabusItemRead'
+          description: ''
+  /api/v1/syllabus/{id}/:
+    get:
+      operationId: v1_syllabus_retrieve
+      description: Get a single syllabus item by ID.
+      summary: Retrieve syllabus item
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyllabusItemRead'
+          description: ''
+    patch:
+      operationId: v1_syllabus_partial_update
+      description: Partially update a syllabus item. Requires content_manager or platform_admin
+        role.
+      summary: Update syllabus item
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSyllabusItemUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedSyllabusItemUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedSyllabusItemUpdateRequest'
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyllabusItemRead'
+          description: ''
+  /api/v1/topics/:
+    post:
+      operationId: v1_topics_create
+      description: Create a new topic under a subject. Requires content_manager or
+        platform_admin role.
+      summary: Create topic
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TopicCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TopicCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TopicCreateRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopicRead'
+          description: ''
+  /api/v1/topics/{id}/:
+    get:
+      operationId: v1_topics_retrieve
+      description: Get a single topic by ID.
+      summary: Retrieve topic
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopicRead'
+          description: ''
+    patch:
+      operationId: v1_topics_partial_update
+      description: Partially update a topic. Requires content_manager or platform_admin
+        role.
+      summary: Update topic
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTopicUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedTopicUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedTopicUpdateRequest'
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopicRead'
+          description: ''
+  /api/v1/topics/{topic_pk}/subtopics/:
+    get:
+      operationId: v1_topics_subtopics_list
+      description: Retrieve all subtopics belonging to a topic.
+      summary: List subtopics for topic
+      parameters:
+      - in: path
+        name: topic_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SubtopicRead'
+          description: ''
+components:
+  schemas:
+    ExamCreateRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 40
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        exam_type:
+          allOf:
+          - $ref: '#/components/schemas/ExamTypeEnum'
+          description: |-
+            Exam category: qualifying, ranked, or entrance
+
+            * `qualifying` - qualifying
+            * `ranked` - ranked
+            * `entrance` - entrance
+        difficulty_levels: {}
+        exam_rules: {}
+        blueprint: {}
+        passing_criteria: {}
+        analytics_rules: {}
+        audience_is_minor:
+          type: boolean
+        is_active:
+          type: boolean
+      required:
+      - code
+      - exam_type
+      - name
+    ExamHierarchy:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        code:
+          type: string
+          maxLength: 40
+        name:
+          type: string
+          maxLength: 150
+        subjects:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubjectHierarchy'
+          readOnly: true
+      required:
+      - code
+      - id
+      - name
+      - subjects
+    ExamRead:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        code:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        exam_type:
+          allOf:
+          - $ref: '#/components/schemas/ExamReadExamTypeEnum'
+          readOnly: true
+        difficulty_levels:
+          readOnly: true
+        exam_rules:
+          readOnly: true
+        blueprint:
+          readOnly: true
+        passing_criteria:
+          readOnly: true
+        analytics_rules:
+          readOnly: true
+        audience_is_minor:
+          type: boolean
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - analytics_rules
+      - audience_is_minor
+      - blueprint
+      - code
+      - created_at
+      - difficulty_levels
+      - exam_rules
+      - exam_type
+      - id
+      - is_active
+      - name
+      - passing_criteria
+      - updated_at
+    ExamReadExamTypeEnum:
+      enum:
+      - qualifying
+      - ranked
+      - entrance
+      type: string
+      description: |-
+        * `qualifying` - Qualifying
+        * `ranked` - Ranked
+        * `entrance` - Entrance
+    ExamTypeEnum:
+      enum:
+      - qualifying
+      - ranked
+      - entrance
+      type: string
+      description: |-
+        * `qualifying` - qualifying
+        * `ranked` - ranked
+        * `entrance` - entrance
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - email
+      - password
+    PasswordResetConfirmRequest:
+      type: object
+      properties:
+        token:
+          type: string
+          minLength: 1
+        new_password:
+          type: string
+          writeOnly: true
+          minLength: 8
+        new_password_confirm:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - new_password
+      - new_password_confirm
+      - token
+    PasswordResetRequestRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+      required:
+      - email
+    PatchedExamUpdateRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 40
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        exam_type:
+          allOf:
+          - $ref: '#/components/schemas/ExamTypeEnum'
+          description: |-
+            Exam category: qualifying, ranked, or entrance
+
+            * `qualifying` - qualifying
+            * `ranked` - ranked
+            * `entrance` - entrance
+        difficulty_levels: {}
+        exam_rules: {}
+        blueprint: {}
+        passing_criteria: {}
+        analytics_rules: {}
+        audience_is_minor:
+          type: boolean
+    PatchedPreviousYearPaperUpdateRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 60
+        year:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        language:
+          type: string
+          minLength: 1
+          maxLength: 10
+        file_path:
+          type: string
+          nullable: true
+        total_questions:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+    PatchedSubjectUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+    PatchedSubtopicUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+    PatchedSyllabusItemUpdateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        parent_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID of the parent syllabus item
+        topic_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID of the related topic
+        subtopic_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID of the related subtopic
+        description:
+          type: string
+        weightage:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+    PatchedTopicUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+    PatchedUpdateProfileRequest:
+      type: object
+      properties:
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        phone_e164:
+          type: string
+          nullable: true
+          maxLength: 20
+        preferred_language:
+          $ref: '#/components/schemas/PreferredLanguageEnum'
+        target_exam_id:
+          type: string
+          format: uuid
+          nullable: true
+        exam_date:
+          type: string
+          format: date
+          nullable: true
+    PreferredLanguageEnum:
+      enum:
+      - as
+      - en
+      - hi
+      type: string
+      description: |-
+        * `as` - as
+        * `en` - en
+        * `hi` - hi
+    PreviousYearPaperCreateRequest:
+      type: object
+      properties:
+        exam_id:
+          type: string
+          format: uuid
+          description: ID of the parent exam
+        code:
+          type: string
+          minLength: 1
+          maxLength: 60
+        year:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        language:
+          type: string
+          minLength: 1
+          maxLength: 10
+        file_path:
+          type: string
+          nullable: true
+        total_questions:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+      required:
+      - code
+      - exam_id
+      - year
+    PreviousYearPaperRead:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        exam_id:
+          type: string
+          format: uuid
+          readOnly: true
+        code:
+          type: string
+          maxLength: 60
+        year:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        language:
+          type: string
+          maxLength: 10
+        file_path:
+          type: string
+          nullable: true
+        total_questions:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - code
+      - created_at
+      - exam_id
+      - id
+      - year
+    RegistrationRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        password:
+          type: string
+          writeOnly: true
+          minLength: 8
+        password_confirm:
+          type: string
+          writeOnly: true
+          minLength: 1
+        phone_e164:
+          type: string
+          maxLength: 20
+        preferred_language:
+          allOf:
+          - $ref: '#/components/schemas/PreferredLanguageEnum'
+          default: as
+      required:
+      - email
+      - full_name
+      - password
+      - password_confirm
+    ResendVerificationRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+      required:
+      - email
+    StatusEnum:
+      enum:
+      - pending
+      - active
+      - suspended
+      - deleted
+      type: string
+      description: |-
+        * `pending` - pending
+        * `active` - active
+        * `suspended` - suspended
+        * `deleted` - deleted
+    SubjectCreateRequest:
+      type: object
+      properties:
+        exam_id:
+          type: string
+          format: uuid
+          description: ID of the parent exam
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+      required:
+      - exam_id
+      - name
+    SubjectHierarchy:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        topics:
+          type: array
+          items:
+            $ref: '#/components/schemas/TopicHierarchy'
+          readOnly: true
+      required:
+      - id
+      - name
+      - topics
+    SubjectRead:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        exam_id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+      required:
+      - exam_id
+      - id
+      - name
+    SubtopicCreateRequest:
+      type: object
+      properties:
+        topic_id:
+          type: string
+          format: uuid
+          description: ID of the parent topic
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+      required:
+      - name
+      - topic_id
+    SubtopicNested:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 150
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+      required:
+      - id
+      - name
+    SubtopicRead:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        topic_id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 150
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+      required:
+      - id
+      - name
+      - topic_id
+    SyllabusItemCreateRequest:
+      type: object
+      properties:
+        exam_id:
+          type: string
+          format: uuid
+          description: ID of the parent exam
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        parent_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID of the parent syllabus item
+        topic_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID of the related topic
+        subtopic_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID of the related subtopic
+        description:
+          type: string
+        weightage:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+      required:
+      - exam_id
+      - title
+    SyllabusItemRead:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        exam_id:
+          type: string
+          format: uuid
+          readOnly: true
+        parent_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        topic_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        subtopic_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        weightage:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+      required:
+      - exam_id
+      - id
+      - parent_id
+      - subtopic_id
+      - title
+      - topic_id
+    TopicCreateRequest:
+      type: object
+      properties:
+        subject_id:
+          type: string
+          format: uuid
+          description: ID of the parent subject
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+      required:
+      - name
+      - subject_id
+    TopicHierarchy:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 150
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        subtopics:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubtopicNested'
+          readOnly: true
+      required:
+      - id
+      - name
+      - subtopics
+    TopicRead:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        subject_id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 150
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+      required:
+      - id
+      - name
+      - subject_id
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        full_name:
+          type: string
+          maxLength: 150
+        phone_e164:
+          type: string
+          nullable: true
+          maxLength: 20
+        preferred_language:
+          type: string
+          maxLength: 10
+        target_exam_id:
+          type: string
+          format: uuid
+          nullable: true
+          readOnly: true
+        exam_date:
+          type: string
+          format: date
+          nullable: true
+        is_minor:
+          type: boolean
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          readOnly: true
+        is_email_verified:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - email
+      - full_name
+      - id
+      - is_email_verified
+      - status
+      - target_exam_id
+    VerifyEmailRequest:
+      type: object
+      properties:
+        token:
+          type: string
+          minLength: 1
+      required:
+      - token
+  securitySchemes:
+    cookieJWT:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token set as httpOnly cookie by the login endpoint.

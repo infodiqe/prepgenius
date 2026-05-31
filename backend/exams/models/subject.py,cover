@@ -1,0 +1,63 @@
+> import uuid
+  
+> from django.db import models
+  
+  
+> class Subject(models.Model):
+>     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+>     exam = models.ForeignKey(
+>         "exams.Exam", on_delete=models.CASCADE, related_name="subjects"
+>     )
+>     name = models.CharField(max_length=100)
+>     position = models.IntegerField(default=0)
+  
+>     class Meta:
+>         constraints = [
+>             models.UniqueConstraint(
+>                 fields=["exam", "name"], name="uq_subject_exam_name"
+>             )
+>         ]
+>         ordering = ["exam", "position"]
+  
+>     def __str__(self) -> str:
+!         return f"{self.exam.code} / {self.name}"
+  
+  
+> class Topic(models.Model):
+>     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+>     subject = models.ForeignKey(
+>         Subject, on_delete=models.CASCADE, related_name="topics"
+>     )
+>     name = models.CharField(max_length=150)
+>     position = models.IntegerField(default=0)
+  
+>     class Meta:
+>         constraints = [
+>             models.UniqueConstraint(
+>                 fields=["subject", "name"], name="uq_topic_subject_name"
+>             )
+>         ]
+>         ordering = ["subject", "position"]
+  
+>     def __str__(self) -> str:
+!         return f"{self.subject.name} / {self.name}"
+  
+  
+> class Subtopic(models.Model):
+>     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+>     topic = models.ForeignKey(
+>         Topic, on_delete=models.CASCADE, related_name="subtopics"
+>     )
+>     name = models.CharField(max_length=150)
+>     position = models.IntegerField(default=0)
+  
+>     class Meta:
+>         constraints = [
+>             models.UniqueConstraint(
+>                 fields=["topic", "name"], name="uq_subtopic_topic_name"
+>             )
+>         ]
+>         ordering = ["topic", "position"]
+  
+>     def __str__(self) -> str:
+!         return f"{self.topic.name} / {self.name}"

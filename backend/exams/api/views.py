@@ -1,0 +1,546 @@
+from uuid import UUID
+
+from django.core.exceptions import ObjectDoesNotExist
+from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
+from rest_framework import status
+from rest_framework.exceptions import NotFound, ValidationError
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from common.permissions import (
+    CanActivateDeactivateExam,
+    CanManageExamConfiguration,
+    IsAuthenticatedReadOnly,
+)
+
+from exams.exceptions import (
+    ExamDomainError,
+    ExamNotFoundError,
+    PreviousYearPaperNotFoundError,
+    SubjectNotFoundError,
+    SubtopicNotFoundError,
+    SyllabusItemNotFoundError,
+    TopicNotFoundError,
+)
+from exams.selectors.exam_selectors import (
+    get_complete_exam_hierarchy,
+    get_exam_by_id,
+    get_previous_year_paper_by_id,
+    get_subject_by_id,
+    get_subtopic_by_id,
+    get_syllabus_item_by_id,
+    get_topic_by_id,
+    list_active_exams,
+    list_exams,
+    list_previous_year_papers,
+    list_subjects_for_exam,
+    list_subtopics_for_topic,
+    list_syllabus_for_exam,
+    list_topics_for_subject,
+)
+from exams.serializers import (
+    ExamCreateSerializer,
+    ExamHierarchySerializer,
+    ExamReadSerializer,
+    ExamUpdateSerializer,
+    PreviousYearPaperCreateSerializer,
+    PreviousYearPaperReadSerializer,
+    PreviousYearPaperUpdateSerializer,
+    SubjectCreateSerializer,
+    SubjectHierarchySerializer,
+    SubjectReadSerializer,
+    SubjectUpdateSerializer,
+    SubtopicCreateSerializer,
+    SubtopicReadSerializer,
+    SubtopicUpdateSerializer,
+    SyllabusItemCreateSerializer,
+    SyllabusItemReadSerializer,
+    SyllabusItemUpdateSerializer,
+    TopicCreateSerializer,
+    TopicReadSerializer,
+    TopicUpdateSerializer,
+)
+from exams.services.exam_services import (
+    activate_exam,
+    create_exam,
+    create_previous_year_paper,
+    create_subject,
+    create_subtopic,
+    create_syllabus_item,
+    create_topic,
+    deactivate_exam,
+    update_exam,
+    update_previous_year_paper,
+    update_subject,
+    update_subtopic,
+    update_syllabus_item,
+    update_topic,
+)
+
+_NOT_FOUND_ERRORS = (
+    ExamNotFoundError,
+    SubjectNotFoundError,
+    TopicNotFoundError,
+    SubtopicNotFoundError,
+    SyllabusItemNotFoundError,
+    PreviousYearPaperNotFoundError,
+)
+
+
+class ExamBaseView(APIView):
+    permission_classes = [IsAuthenticatedReadOnly]
+
+    def handle_exception(self, exc):
+        if isinstance(exc, ExamDomainError):
+            if isinstance(exc, _NOT_FOUND_ERRORS):
+                exc = NotFound(str(exc))
+            else:
+                exc = ValidationError(str(exc))
+        elif isinstance(exc, ObjectDoesNotExist):
+            exc = NotFound(str(exc))
+        return super().handle_exception(exc)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# EXAMS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+@extend_schema_view(
+    get=extend_schema(
+        summary="List exams",
+        description="Retrieve all exam configurations. Returns an array of exam objects.",
+        responses=ExamReadSerializer(many=True),
+    ),
+    post=extend_schema(
+        summary="Create exam",
+        description="Create a new exam configuration. Requires content_manager or platform_admin role.",
+        request=ExamCreateSerializer,
+        responses=ExamReadSerializer,
+    ),
+)
+class ExamList(ExamBaseView):
+    def get(self, request):
+        exams = list_exams()
+        return Response(ExamReadSerializer(exams, many=True).data)
+
+    def post(self, request):
+        serializer = ExamCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        exam = create_exam(**serializer.validated_data)
+        return Response(
+            ExamReadSerializer(exam).data, status=status.HTTP_201_CREATED
+        )
+
+
+@extend_schema_view(
+    get=extend_schema(
+        summary="Retrieve exam",
+        description="Get a single exam configuration by ID.",
+        responses=ExamReadSerializer,
+    ),
+    patch=extend_schema(
+        summary="Update exam",
+        description="Partially update an exam configuration. Requires content_manager or platform_admin role.",
+        request=ExamUpdateSerializer,
+        responses=ExamReadSerializer,
+    ),
+)
+class ExamDetail(ExamBaseView):
+    def get(self, request, pk: UUID):
+        exam = get_exam_by_id(exam_id=pk)
+        return Response(ExamReadSerializer(exam).data)
+
+    def patch(self, request, pk: UUID):
+        serializer = ExamUpdateSerializer(
+            data=request.data, partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        exam = update_exam(exam_id=pk, **serializer.validated_data)
+        return Response(ExamReadSerializer(exam).data)
+
+
+@extend_schema_view(
+    get=extend_schema(
+        summary="Exam hierarchy tree",
+        description="Retrieve exam with nested subjects, topics, and subtopics in a single tree structure.",
+        responses=ExamHierarchySerializer,
+    ),
+)
+class ExamTree(ExamBaseView):
+    def get(self, request, pk: UUID):
+        exam = get_exam_by_id(exam_id=pk)
+        subjects = get_complete_exam_hierarchy(exam_id=pk)
+        data = ExamReadSerializer(exam).data
+        data["subjects"] = SubjectHierarchySerializer(subjects, many=True).data
+        return Response(data)
+
+
+class ExamActivate(ExamBaseView):
+    permission_classes = [CanActivateDeactivateExam]
+
+    @extend_schema(
+        summary="Activate exam",
+        description="Activate an exam configuration. Requires platform_admin role only.",
+        request=None,
+        responses={200: ExamReadSerializer},
+    )
+    def post(self, request, pk: UUID):
+        exam = activate_exam(exam_id=pk)
+        return Response(ExamReadSerializer(exam).data)
+
+
+class ExamDeactivate(ExamBaseView):
+    permission_classes = [CanActivateDeactivateExam]
+
+    @extend_schema(
+        summary="Deactivate exam",
+        description="Deactivate an exam configuration. Requires platform_admin role only.",
+        request=None,
+        responses={200: ExamReadSerializer},
+    )
+    def post(self, request, pk: UUID):
+        exam = deactivate_exam(exam_id=pk)
+        return Response(ExamReadSerializer(exam).data)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SUBJECTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+@extend_schema_view(
+    get=extend_schema(
+        summary="List subjects for exam",
+        description="Retrieve all subjects belonging to an exam.",
+        responses=SubjectReadSerializer(many=True),
+    ),
+)
+class ExamSubjectList(ExamBaseView):
+    def get(self, request, exam_pk: UUID):
+        subjects = list_subjects_for_exam(exam_id=exam_pk)
+        return Response(SubjectReadSerializer(subjects, many=True).data)
+
+
+@extend_schema_view(
+    post=extend_schema(
+        summary="Create subject",
+        description="Create a new subject under an exam. Requires content_manager or platform_admin role.",
+        request=SubjectCreateSerializer,
+        responses=SubjectReadSerializer,
+    ),
+)
+class SubjectCreate(ExamBaseView):
+    permission_classes = [CanManageExamConfiguration]
+
+    def post(self, request):
+        serializer = SubjectCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        subject = create_subject(**serializer.validated_data)
+        return Response(
+            SubjectReadSerializer(subject).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+@extend_schema_view(
+    get=extend_schema(
+        summary="Retrieve subject",
+        description="Get a single subject by ID.",
+        responses=SubjectReadSerializer,
+    ),
+    patch=extend_schema(
+        summary="Update subject",
+        description="Partially update a subject. Requires content_manager or platform_admin role.",
+        request=SubjectUpdateSerializer,
+        responses=SubjectReadSerializer,
+    ),
+)
+class SubjectDetail(ExamBaseView):
+    def get(self, request, pk: UUID):
+        subject = get_subject_by_id(subject_id=pk)
+        return Response(SubjectReadSerializer(subject).data)
+
+    def patch(self, request, pk: UUID):
+        serializer = SubjectUpdateSerializer(
+            data=request.data, partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        subject = update_subject(
+            subject_id=pk, **serializer.validated_data
+        )
+        return Response(SubjectReadSerializer(subject).data)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TOPICS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+@extend_schema_view(
+    get=extend_schema(
+        summary="List topics for subject",
+        description="Retrieve all topics belonging to a subject.",
+        responses=TopicReadSerializer(many=True),
+    ),
+)
+class SubjectTopicList(ExamBaseView):
+    def get(self, request, subject_pk: UUID):
+        topics = list_topics_for_subject(subject_id=subject_pk)
+        return Response(TopicReadSerializer(topics, many=True).data)
+
+
+@extend_schema_view(
+    post=extend_schema(
+        summary="Create topic",
+        description="Create a new topic under a subject. Requires content_manager or platform_admin role.",
+        request=TopicCreateSerializer,
+        responses=TopicReadSerializer,
+    ),
+)
+class TopicCreate(ExamBaseView):
+    permission_classes = [CanManageExamConfiguration]
+
+    def post(self, request):
+        serializer = TopicCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        topic = create_topic(**serializer.validated_data)
+        return Response(
+            TopicReadSerializer(topic).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+@extend_schema_view(
+    get=extend_schema(
+        summary="Retrieve topic",
+        description="Get a single topic by ID.",
+        responses=TopicReadSerializer,
+    ),
+    patch=extend_schema(
+        summary="Update topic",
+        description="Partially update a topic. Requires content_manager or platform_admin role.",
+        request=TopicUpdateSerializer,
+        responses=TopicReadSerializer,
+    ),
+)
+class TopicDetail(ExamBaseView):
+    def get(self, request, pk: UUID):
+        topic = get_topic_by_id(topic_id=pk)
+        return Response(TopicReadSerializer(topic).data)
+
+    def patch(self, request, pk: UUID):
+        serializer = TopicUpdateSerializer(
+            data=request.data, partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        topic = update_topic(topic_id=pk, **serializer.validated_data)
+        return Response(TopicReadSerializer(topic).data)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SUBTOPICS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+@extend_schema_view(
+    get=extend_schema(
+        summary="List subtopics for topic",
+        description="Retrieve all subtopics belonging to a topic.",
+        responses=SubtopicReadSerializer(many=True),
+    ),
+)
+class TopicSubtopicList(ExamBaseView):
+    def get(self, request, topic_pk: UUID):
+        subtopics = list_subtopics_for_topic(topic_id=topic_pk)
+        return Response(SubtopicReadSerializer(subtopics, many=True).data)
+
+
+@extend_schema_view(
+    post=extend_schema(
+        summary="Create subtopic",
+        description="Create a new subtopic under a topic. Requires content_manager or platform_admin role.",
+        request=SubtopicCreateSerializer,
+        responses=SubtopicReadSerializer,
+    ),
+)
+class SubtopicCreate(ExamBaseView):
+    permission_classes = [CanManageExamConfiguration]
+
+    def post(self, request):
+        serializer = SubtopicCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        subtopic = create_subtopic(**serializer.validated_data)
+        return Response(
+            SubtopicReadSerializer(subtopic).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+@extend_schema_view(
+    get=extend_schema(
+        summary="Retrieve subtopic",
+        description="Get a single subtopic by ID.",
+        responses=SubtopicReadSerializer,
+    ),
+    patch=extend_schema(
+        summary="Update subtopic",
+        description="Partially update a subtopic. Requires content_manager or platform_admin role.",
+        request=SubtopicUpdateSerializer,
+        responses=SubtopicReadSerializer,
+    ),
+)
+class SubtopicDetail(ExamBaseView):
+    def get(self, request, pk: UUID):
+        subtopic = get_subtopic_by_id(subtopic_id=pk)
+        return Response(SubtopicReadSerializer(subtopic).data)
+
+    def patch(self, request, pk: UUID):
+        serializer = SubtopicUpdateSerializer(
+            data=request.data, partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        subtopic = update_subtopic(
+            subtopic_id=pk, **serializer.validated_data
+        )
+        return Response(SubtopicReadSerializer(subtopic).data)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SYLLABUS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+@extend_schema_view(
+    get=extend_schema(
+        summary="List syllabus for exam",
+        description="Retrieve all syllabus items for an exam.",
+        responses=SyllabusItemReadSerializer(many=True),
+    ),
+)
+class ExamSyllabusList(ExamBaseView):
+    def get(self, request, exam_pk: UUID):
+        items = list_syllabus_for_exam(exam_id=exam_pk)
+        return Response(
+            SyllabusItemReadSerializer(items, many=True).data
+        )
+
+
+@extend_schema_view(
+    post=extend_schema(
+        summary="Create syllabus item",
+        description="Create a new syllabus item for an exam. Requires content_manager or platform_admin role.",
+        request=SyllabusItemCreateSerializer,
+        responses=SyllabusItemReadSerializer,
+    ),
+)
+class SyllabusCreate(ExamBaseView):
+    permission_classes = [CanManageExamConfiguration]
+
+    def post(self, request):
+        serializer = SyllabusItemCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        item = create_syllabus_item(**serializer.validated_data)
+        return Response(
+            SyllabusItemReadSerializer(item).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+@extend_schema_view(
+    get=extend_schema(
+        summary="Retrieve syllabus item",
+        description="Get a single syllabus item by ID.",
+        responses=SyllabusItemReadSerializer,
+    ),
+    patch=extend_schema(
+        summary="Update syllabus item",
+        description="Partially update a syllabus item. Requires content_manager or platform_admin role.",
+        request=SyllabusItemUpdateSerializer,
+        responses=SyllabusItemReadSerializer,
+    ),
+)
+class SyllabusDetail(ExamBaseView):
+    def get(self, request, pk: UUID):
+        item = get_syllabus_item_by_id(syllabus_item_id=pk)
+        return Response(SyllabusItemReadSerializer(item).data)
+
+    def patch(self, request, pk: UUID):
+        serializer = SyllabusItemUpdateSerializer(
+            data=request.data, partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        item = update_syllabus_item(
+            syllabus_item_id=pk, **serializer.validated_data
+        )
+        return Response(SyllabusItemReadSerializer(item).data)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PREVIOUS YEAR PAPERS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+@extend_schema_view(
+    get=extend_schema(
+        summary="List previous year papers",
+        description="Retrieve previous year papers. Optionally filter by exam_id query parameter.",
+        responses=PreviousYearPaperReadSerializer(many=True),
+    ),
+    post=extend_schema(
+        summary="Create previous year paper",
+        description="Create a new previous year paper. Requires content_manager or platform_admin role.",
+        request=PreviousYearPaperCreateSerializer,
+        responses=PreviousYearPaperReadSerializer,
+    ),
+)
+class PaperList(ExamBaseView):
+    def get(self, request):
+        exam_id = request.query_params.get("exam_id")
+        exam_uuid: UUID | None = (
+            UUID(exam_id) if exam_id else None
+        )
+        papers = list_previous_year_papers(exam_id=exam_uuid)
+        return Response(
+            PreviousYearPaperReadSerializer(papers, many=True).data
+        )
+
+    def post(self, request):
+        serializer = PreviousYearPaperCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        paper = create_previous_year_paper(
+            **serializer.validated_data
+        )
+        return Response(
+            PreviousYearPaperReadSerializer(paper).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+@extend_schema_view(
+    get=extend_schema(
+        summary="Retrieve previous year paper",
+        description="Get a single previous year paper by ID.",
+        responses=PreviousYearPaperReadSerializer,
+    ),
+    patch=extend_schema(
+        summary="Update previous year paper",
+        description="Partially update a previous year paper. Requires content_manager or platform_admin role.",
+        request=PreviousYearPaperUpdateSerializer,
+        responses=PreviousYearPaperReadSerializer,
+    ),
+)
+class PaperDetail(ExamBaseView):
+    def get(self, request, pk: UUID):
+        paper = get_previous_year_paper_by_id(paper_id=pk)
+        return Response(PreviousYearPaperReadSerializer(paper).data)
+
+    def patch(self, request, pk: UUID):
+        serializer = PreviousYearPaperUpdateSerializer(
+            data=request.data, partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        paper = update_previous_year_paper(
+            paper_id=pk, **serializer.validated_data
+        )
+        return Response(PreviousYearPaperReadSerializer(paper).data)

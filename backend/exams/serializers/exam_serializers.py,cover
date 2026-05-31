@@ -1,0 +1,429 @@
+> from rest_framework import serializers
+  
+> from exams.models import (
+>     Exam,
+>     PreviousYearPaper,
+>     Subject,
+>     Subtopic,
+>     SyllabusItem,
+>     Topic,
+> )
+  
+> _EXAM_TYPE_CHOICES = ["qualifying", "ranked", "entrance"]
+  
+  
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # READ SERIALIZERS
+  # ═══════════════════════════════════════════════════════════════════════════════
+  
+  
+> class ExamReadSerializer(serializers.ModelSerializer):
+>     class Meta:
+>         model = Exam
+>         fields = [
+>             "id",
+>             "code",
+>             "name",
+>             "exam_type",
+>             "difficulty_levels",
+>             "exam_rules",
+>             "blueprint",
+>             "passing_criteria",
+>             "analytics_rules",
+>             "audience_is_minor",
+>             "is_active",
+>             "created_at",
+>             "updated_at",
+>         ]
+>         read_only_fields = fields
+  
+  
+> class SubjectReadSerializer(serializers.ModelSerializer):
+>     exam_id = serializers.UUIDField(read_only=True)
+>     class Meta:
+>         model = Subject
+>         fields = [
+>             "id",
+>             "exam_id",
+>             "name",
+>             "position",
+>         ]
+  
+  
+> class TopicReadSerializer(serializers.ModelSerializer):
+>     subject_id = serializers.UUIDField(read_only=True)
+>     class Meta:
+>         model = Topic
+>         fields = [
+>             "id",
+>             "subject_id",
+>             "name",
+>             "position",
+>         ]
+  
+  
+> class SubtopicReadSerializer(serializers.ModelSerializer):
+>     topic_id = serializers.UUIDField(read_only=True)
+>     class Meta:
+>         model = Subtopic
+>         fields = [
+>             "id",
+>             "topic_id",
+>             "name",
+>             "position",
+>         ]
+  
+  
+> class SyllabusItemReadSerializer(serializers.ModelSerializer):
+>     exam_id = serializers.UUIDField(read_only=True)
+>     parent_id = serializers.UUIDField(read_only=True, allow_null=True)
+>     topic_id = serializers.UUIDField(read_only=True, allow_null=True)
+>     subtopic_id = serializers.UUIDField(read_only=True, allow_null=True)
+>     class Meta:
+>         model = SyllabusItem
+>         fields = [
+>             "id",
+>             "exam_id",
+>             "parent_id",
+>             "topic_id",
+>             "subtopic_id",
+>             "title",
+>             "description",
+>             "weightage",
+>             "position",
+>         ]
+  
+  
+> class PreviousYearPaperReadSerializer(serializers.ModelSerializer):
+>     exam_id = serializers.UUIDField(read_only=True)
+>     class Meta:
+>         model = PreviousYearPaper
+>         fields = [
+>             "id",
+>             "exam_id",
+>             "code",
+>             "year",
+>             "language",
+>             "file_path",
+>             "total_questions",
+>             "created_at",
+>         ]
+  
+  
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # CREATE SERIALIZERS
+  # ═══════════════════════════════════════════════════════════════════════════════
+  
+  
+> class ExamCreateSerializer(serializers.ModelSerializer):
+>     exam_type = serializers.ChoiceField(
+>         choices=_EXAM_TYPE_CHOICES,
+>         help_text="Exam category: qualifying, ranked, or entrance",
+>     )
+  
+>     class Meta:
+>         model = Exam
+>         fields = [
+>             "code",
+>             "name",
+>             "exam_type",
+>             "difficulty_levels",
+>             "exam_rules",
+>             "blueprint",
+>             "passing_criteria",
+>             "analytics_rules",
+>             "audience_is_minor",
+>             "is_active",
+>         ]
+  
+>     def validate_code(self, value: str) -> str:
+>         if len(value) > 40:
+!             raise serializers.ValidationError(
+!                 "Exam code must not exceed 40 characters"
+!             )
+>         return value
+  
+  
+> class ExamUpdateSerializer(serializers.ModelSerializer):
+>     exam_type = serializers.ChoiceField(
+>         choices=_EXAM_TYPE_CHOICES,
+>         required=False,
+>         help_text="Exam category: qualifying, ranked, or entrance",
+>     )
+  
+>     class Meta:
+>         model = Exam
+>         fields = [
+>             "code",
+>             "name",
+>             "exam_type",
+>             "difficulty_levels",
+>             "exam_rules",
+>             "blueprint",
+>             "passing_criteria",
+>             "analytics_rules",
+>             "audience_is_minor",
+>         ]
+>         extra_kwargs = {
+>             "code": {"required": False, "max_length": 40},
+>             "name": {"required": False, "max_length": 150},
+>             "difficulty_levels": {"required": False},
+>             "exam_rules": {"required": False},
+>             "blueprint": {"required": False},
+>             "passing_criteria": {"required": False},
+>             "analytics_rules": {"required": False},
+>             "audience_is_minor": {"required": False},
+>         }
+  
+  
+> class SubjectCreateSerializer(serializers.ModelSerializer):
+>     exam_id = serializers.UUIDField(help_text="ID of the parent exam")
+  
+>     class Meta:
+>         model = Subject
+>         fields = [
+>             "exam_id",
+>             "name",
+>             "position",
+>         ]
+>         extra_kwargs = {
+>             "name": {"max_length": 100},
+>             "position": {"required": False},
+>         }
+  
+  
+> class SubjectUpdateSerializer(serializers.ModelSerializer):
+>     class Meta:
+>         model = Subject
+>         fields = [
+>             "name",
+>             "position",
+>         ]
+>         extra_kwargs = {
+>             "name": {"required": False, "max_length": 100},
+>             "position": {"required": False},
+>         }
+  
+  
+> class TopicCreateSerializer(serializers.ModelSerializer):
+>     subject_id = serializers.UUIDField(help_text="ID of the parent subject")
+  
+>     class Meta:
+>         model = Topic
+>         fields = [
+>             "subject_id",
+>             "name",
+>             "position",
+>         ]
+>         extra_kwargs = {
+>             "name": {"max_length": 150},
+>             "position": {"required": False},
+>         }
+  
+  
+> class TopicUpdateSerializer(serializers.ModelSerializer):
+>     class Meta:
+>         model = Topic
+>         fields = [
+>             "name",
+>             "position",
+>         ]
+>         extra_kwargs = {
+>             "name": {"required": False, "max_length": 150},
+>             "position": {"required": False},
+>         }
+  
+  
+> class SubtopicCreateSerializer(serializers.ModelSerializer):
+>     topic_id = serializers.UUIDField(help_text="ID of the parent topic")
+  
+>     class Meta:
+>         model = Subtopic
+>         fields = [
+>             "topic_id",
+>             "name",
+>             "position",
+>         ]
+>         extra_kwargs = {
+>             "name": {"max_length": 150},
+>             "position": {"required": False},
+>         }
+  
+  
+> class SubtopicUpdateSerializer(serializers.ModelSerializer):
+>     class Meta:
+>         model = Subtopic
+>         fields = [
+>             "name",
+>             "position",
+>         ]
+>         extra_kwargs = {
+>             "name": {"required": False, "max_length": 150},
+>             "position": {"required": False},
+>         }
+  
+  
+> class SyllabusItemCreateSerializer(serializers.ModelSerializer):
+>     exam_id = serializers.UUIDField(help_text="ID of the parent exam")
+>     parent_id = serializers.UUIDField(
+>         required=False, allow_null=True, help_text="ID of the parent syllabus item"
+>     )
+>     topic_id = serializers.UUIDField(
+>         required=False, allow_null=True, help_text="ID of the related topic"
+>     )
+>     subtopic_id = serializers.UUIDField(
+>         required=False, allow_null=True, help_text="ID of the related subtopic"
+>     )
+  
+>     class Meta:
+>         model = SyllabusItem
+>         fields = [
+>             "exam_id",
+>             "title",
+>             "parent_id",
+>             "topic_id",
+>             "subtopic_id",
+>             "description",
+>             "weightage",
+>             "position",
+>         ]
+>         extra_kwargs = {
+>             "title": {"max_length": 255},
+>             "description": {"required": False},
+>             "weightage": {
+>                 "required": False,
+>                 "allow_null": True,
+>                 "max_digits": 5,
+>                 "decimal_places": 2,
+>             },
+>             "position": {"required": False},
+>         }
+  
+  
+> class SyllabusItemUpdateSerializer(serializers.ModelSerializer):
+>     parent_id = serializers.UUIDField(
+>         required=False, allow_null=True, help_text="ID of the parent syllabus item"
+>     )
+>     topic_id = serializers.UUIDField(
+>         required=False, allow_null=True, help_text="ID of the related topic"
+>     )
+>     subtopic_id = serializers.UUIDField(
+>         required=False, allow_null=True, help_text="ID of the related subtopic"
+>     )
+  
+>     class Meta:
+>         model = SyllabusItem
+>         fields = [
+>             "title",
+>             "parent_id",
+>             "topic_id",
+>             "subtopic_id",
+>             "description",
+>             "weightage",
+>             "position",
+>         ]
+>         extra_kwargs = {
+>             "title": {"required": False, "max_length": 255},
+>             "description": {"required": False},
+>             "weightage": {
+>                 "required": False,
+>                 "allow_null": True,
+>                 "max_digits": 5,
+>                 "decimal_places": 2,
+>             },
+>             "position": {"required": False},
+>         }
+  
+  
+> class PreviousYearPaperCreateSerializer(serializers.ModelSerializer):
+>     exam_id = serializers.UUIDField(help_text="ID of the parent exam")
+  
+>     class Meta:
+>         model = PreviousYearPaper
+>         fields = [
+>             "exam_id",
+>             "code",
+>             "year",
+>             "language",
+>             "file_path",
+>             "total_questions",
+>         ]
+>         extra_kwargs = {
+>             "code": {"max_length": 60},
+>             "language": {"required": False},
+>             "file_path": {"required": False, "allow_null": True},
+>             "total_questions": {"required": False},
+>         }
+  
+  
+> class PreviousYearPaperUpdateSerializer(serializers.ModelSerializer):
+>     class Meta:
+>         model = PreviousYearPaper
+>         fields = [
+>             "code",
+>             "year",
+>             "language",
+>             "file_path",
+>             "total_questions",
+>         ]
+>         extra_kwargs = {
+>             "code": {"required": False, "max_length": 60},
+>             "year": {"required": False},
+>             "language": {"required": False},
+>             "file_path": {"required": False, "allow_null": True},
+>             "total_questions": {"required": False},
+>         }
+  
+  
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # HIERARCHY SERIALIZERS
+  # ═══════════════════════════════════════════════════════════════════════════════
+  
+  
+> class SubtopicNestedSerializer(serializers.ModelSerializer):
+>     class Meta:
+>         model = Subtopic
+>         fields = [
+>             "id",
+>             "name",
+>             "position",
+>         ]
+  
+  
+> class TopicHierarchySerializer(serializers.ModelSerializer):
+>     subtopics = SubtopicNestedSerializer(many=True, read_only=True)
+  
+>     class Meta:
+>         model = Topic
+>         fields = [
+>             "id",
+>             "name",
+>             "position",
+>             "subtopics",
+>         ]
+  
+  
+> class SubjectHierarchySerializer(serializers.ModelSerializer):
+>     topics = TopicHierarchySerializer(many=True, read_only=True)
+  
+>     class Meta:
+>         model = Subject
+>         fields = [
+>             "id",
+>             "name",
+>             "position",
+>             "topics",
+>         ]
+  
+  
+> class ExamHierarchySerializer(serializers.ModelSerializer):
+>     subjects = SubjectHierarchySerializer(many=True, read_only=True)
+  
+>     class Meta:
+>         model = Exam
+>         fields = [
+>             "id",
+>             "code",
+>             "name",
+>             "subjects",
+>         ]

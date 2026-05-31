@@ -1,0 +1,245 @@
+> import pytest
+  
+> pytestmark = pytest.mark.django_db
+  
+  
+> READ_ENDPOINTS = [
+>     ("GET", "/api/v1/exams/", None),
+>     ("GET", "exam-detail", "exam"),
+>     ("GET", "exam-tree", "exam"),
+>     ("GET", "exam-subject-list", "exam"),
+>     ("GET", "subject-detail", "subject"),
+>     ("GET", "subject-topic-list", "subject"),
+>     ("GET", "topic-detail", "topic"),
+>     ("GET", "topic-subtopic-list", "topic"),
+>     ("GET", "subtopic-detail", "subtopic"),
+>     ("GET", "exam-syllabus-list", "exam"),
+>     ("GET", "syllabus-detail", "syllabus_item"),
+>     ("GET", "/api/v1/papers/", None),
+>     ("GET", "paper-detail", "previous_year_paper"),
+> ]
+  
+> WRITE_ENDPOINTS = [
+>     ("POST", "/api/v1/exams/", None,
+>      {"code": "WRITE_TEST", "name": "Write Test", "exam_type": "qualifying"}),
+>     ("PATCH", "exam-detail", "exam", {"name": "Updated"}),
+>     ("POST", "/api/v1/subjects/", None,
+>      "subject_payload"),
+>     ("PATCH", "subject-detail", "subject", {"name": "Updated Subject"}),
+>     ("POST", "/api/v1/topics/", None,
+>      "topic_payload"),
+>     ("PATCH", "topic-detail", "topic", {"name": "Updated Topic"}),
+>     ("POST", "/api/v1/subtopics/", None,
+>      "subtopic_payload"),
+>     ("PATCH", "subtopic-detail", "subtopic", {"name": "Updated Subtopic"}),
+>     ("POST", "/api/v1/syllabus/", None,
+>      "syllabus_payload"),
+>     ("PATCH", "syllabus-detail", "syllabus_item", {"title": "Updated Title"}),
+>     ("POST", "/api/v1/papers/", None,
+>      "paper_payload"),
+>     ("PATCH", "paper-detail", "previous_year_paper", {"total_questions": 100}),
+> ]
+  
+> ACTIVATE_ENDPOINTS = [
+>     ("POST", "exam-activate", "inactive_exam"),
+>     ("POST", "exam-deactivate", "exam"),
+> ]
+  
+  
+> ALL_READ_ROLES = [
+>     "student", "teacher", "content_manager", "content_reviewer",
+>     "sme", "institution_admin", "platform_admin",
+> ]
+  
+> WRITE_ROLES = ["content_manager", "platform_admin"]
+  
+> DENIED_WRITE_ROLES = ["student", "teacher", "content_reviewer", "sme", "institution_admin"]
+  
+> DENIED_ACTIVATE_ROLES = [
+>     "student", "teacher", "content_manager", "content_reviewer",
+>     "sme", "institution_admin",
+> ]
+  
+  
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # HELPERS
+  # ═══════════════════════════════════════════════════════════════════════════════
+  
+  
+> def _resolve_url(method, path_or_name, fixture_val):
+>     if path_or_name.startswith("/"):
+>         return path_or_name
+>     url_map = {
+>         "exam-detail": f"/api/v1/exams/{fixture_val.id}/",
+>         "exam-tree": f"/api/v1/exams/{fixture_val.id}/tree/",
+>         "exam-activate": f"/api/v1/exams/{fixture_val.id}/activate/",
+>         "exam-deactivate": f"/api/v1/exams/{fixture_val.id}/deactivate/",
+>         "exam-subject-list": f"/api/v1/exams/{fixture_val.id}/subjects/",
+>         "subject-detail": f"/api/v1/subjects/{fixture_val.id}/",
+>         "subject-topic-list": f"/api/v1/subjects/{fixture_val.id}/topics/",
+>         "topic-detail": f"/api/v1/topics/{fixture_val.id}/",
+>         "topic-subtopic-list": f"/api/v1/topics/{fixture_val.id}/subtopics/",
+>         "subtopic-detail": f"/api/v1/subtopics/{fixture_val.id}/",
+>         "exam-syllabus-list": f"/api/v1/exams/{fixture_val.id}/syllabus/",
+>         "syllabus-detail": f"/api/v1/syllabus/{fixture_val.id}/",
+>         "paper-detail": f"/api/v1/papers/{fixture_val.id}/",
+>     }
+>     return url_map[path_or_name]
+  
+  
+> def _resolve_payload(method, data_or_key, request):
+>     if data_or_key is None:
+!         return None
+>     if isinstance(data_or_key, dict):
+>         return data_or_key
+>     payload_map = {
+>         "subject_payload": {"exam_id": str(request.getfixturevalue("exam").id), "name": "Physics"},
+>         "topic_payload": {"subject_id": str(request.getfixturevalue("subject").id), "name": "Thermodynamics"},
+>         "subtopic_payload": {"topic_id": str(request.getfixturevalue("topic").id), "name": "Heat Transfer"},
+>         "syllabus_payload": {"exam_id": str(request.getfixturevalue("exam").id), "title": "Thermodynamics Laws"},
+>         "paper_payload": {"exam_id": str(request.getfixturevalue("exam").id), "code": "PAPER_2026", "year": 2026},
+>     }
+>     return payload_map[data_or_key]
+  
+  
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # ANONYMOUS ACCESS
+  # ═══════════════════════════════════════════════════════════════════════════════
+  
+  
+> class TestAnonymousAccess:
+>     def test_read_endpoints_return_401(self, anonymous_client, exam, request):
+>         for method, path_or_name, fix_name in READ_ENDPOINTS:
+>             fixture_val = request.getfixturevalue(fix_name) if fix_name else exam
+>             url = _resolve_url(method, path_or_name, fixture_val)
+>             response = anonymous_client.get(url)
+>             assert response.status_code == 401, f"GET {url} expected 401, got {response.status_code}"
+  
+>     def test_write_endpoints_return_401(self, anonymous_client, exam, request):
+>         for method, path_or_name, fix_name, data in WRITE_ENDPOINTS:
+>             fixture_val = request.getfixturevalue(fix_name) if fix_name else None
+>             url = _resolve_url(method, path_or_name, fixture_val)
+>             payload = _resolve_payload(method, data, request)
+>             response = getattr(anonymous_client, method.lower())(url, payload, format="json")
+>             assert response.status_code == 401, f"{method} {url} expected 401, got {response.status_code}"
+  
+>     def test_activate_endpoints_return_401(self, anonymous_client, inactive_exam, exam):
+>         for method, path_or_name, fix_name in ACTIVATE_ENDPOINTS:
+>             fixture_val = inactive_exam if path_or_name == "exam-activate" else exam
+>             url = _resolve_url(method, path_or_name, fixture_val)
+>             response = anonymous_client.post(url)
+>             assert response.status_code == 401, f"POST {url} expected 401, got {response.status_code}"
+  
+  
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # AUTHENTICATED BUT NO ROLE
+  # ═══════════════════════════════════════════════════════════════════════════════
+  
+  
+> class TestAuthenticatedNoRole:
+>     def test_read_endpoints_return_403(self, authenticated_client, exam, request):
+>         client, _ = authenticated_client
+>         for method, path_or_name, fix_name in READ_ENDPOINTS:
+>             fixture_val = request.getfixturevalue(fix_name) if fix_name else exam
+>             url = _resolve_url(method, path_or_name, fixture_val)
+>             response = client.get(url)
+>             assert response.status_code == 403, f"GET {url} expected 403, got {response.status_code}"
+  
+>     def test_write_endpoints_return_403(self, authenticated_client, exam, request):
+>         client, _ = authenticated_client
+>         for method, path_or_name, fix_name, data in WRITE_ENDPOINTS:
+>             fixture_val = request.getfixturevalue(fix_name) if fix_name else None
+>             url = _resolve_url(method, path_or_name, fixture_val)
+>             payload = _resolve_payload(method, data, request)
+>             response = getattr(client, method.lower())(url, payload, format="json")
+>             assert response.status_code == 403, f"{method} {url} expected 403, got {response.status_code}"
+  
+>     def test_activate_endpoints_return_403(self, authenticated_client, inactive_exam, exam):
+>         client, _ = authenticated_client
+>         for method, path_or_name, fix_name in ACTIVATE_ENDPOINTS:
+>             fixture_val = inactive_exam if path_or_name == "exam-activate" else exam
+>             url = _resolve_url(method, path_or_name, fixture_val)
+>             response = client.post(url)
+>             assert response.status_code == 403, f"POST {url} expected 403, got {response.status_code}"
+  
+  
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # READ ACCESS — ALL 7 ROLES ALLOWED
+  # ═══════════════════════════════════════════════════════════════════════════════
+  
+  
+> class TestReadAccess:
+>     @pytest.mark.parametrize("role", ALL_READ_ROLES)
+>     def test_read_endpoints_return_200(self, request, role, exam):
+>         client = request.getfixturevalue(f"{role}_api_client")
+>         for method, path_or_name, fix_name in READ_ENDPOINTS:
+>             fixture_val = request.getfixturevalue(fix_name) if fix_name else exam
+>             url = _resolve_url(method, path_or_name, fixture_val)
+>             response = client.get(url)
+>             assert response.status_code == 200, (
+>                 f"GET {url} as {role} expected 200, got {response.status_code}"
+>             )
+  
+  
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # WRITE ACCESS — ONLY content_manager AND platform_admin ALLOWED
+  # ═══════════════════════════════════════════════════════════════════════════════
+  
+  
+> class TestWriteAccessAllowed:
+>     @pytest.mark.parametrize("role", WRITE_ROLES)
+>     def test_write_endpoints_allowed(self, request, role, exam):
+>         client = request.getfixturevalue(f"{role}_api_client")
+>         for method, path_or_name, fix_name, data in WRITE_ENDPOINTS:
+>             fixture_val = request.getfixturevalue(fix_name) if fix_name else exam
+>             url = _resolve_url(method, path_or_name, fixture_val)
+>             payload = _resolve_payload(method, data, request)
+>             response = getattr(client, method.lower())(url, payload, format="json")
+>             expected = 201 if method == "POST" else 200
+>             assert response.status_code == expected, (
+>                 f"{method} {url} as {role} expected {expected}, got {response.status_code}"
+>             )
+  
+  
+> class TestWriteAccessDenied:
+>     @pytest.mark.parametrize("role", DENIED_WRITE_ROLES)
+>     def test_write_endpoints_return_403(self, request, role, exam):
+>         client = request.getfixturevalue(f"{role}_api_client")
+>         for method, path_or_name, fix_name, data in WRITE_ENDPOINTS:
+>             fixture_val = request.getfixturevalue(fix_name) if fix_name else exam
+>             url = _resolve_url(method, path_or_name, fixture_val)
+>             payload = _resolve_payload(method, data, request)
+>             response = getattr(client, method.lower())(url, payload, format="json")
+>             assert response.status_code == 403, (
+>                 f"{method} {url} as {role} expected 403, got {response.status_code}"
+>             )
+  
+  
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # ACTIVATE / DEACTIVATE — ONLY platform_admin ALLOWED
+  # ═══════════════════════════════════════════════════════════════════════════════
+  
+  
+> class TestActivateAccess:
+>     def test_platform_admin_allowed(self, platform_admin_api_client, inactive_exam, exam):
+>         endpoints = [
+>             ("POST", "exam-activate", inactive_exam),
+>             ("POST", "exam-deactivate", exam),
+>         ]
+>         for method, path_or_name, fixture_val in endpoints:
+>             url = _resolve_url(method, path_or_name, fixture_val)
+>             response = platform_admin_api_client.post(url)
+>             assert response.status_code == 200, (
+>                 f"POST {url} as platform_admin expected 200, got {response.status_code}"
+>             )
+  
+>     @pytest.mark.parametrize("role", DENIED_ACTIVATE_ROLES)
+>     def test_non_platform_admin_return_403(self, request, role, inactive_exam, exam):
+>         client = request.getfixturevalue(f"{role}_api_client")
+>         for method, path_or_name, fix_name in ACTIVATE_ENDPOINTS:
+>             fixture_val = inactive_exam if path_or_name == "exam-activate" else exam
+>             url = _resolve_url(method, path_or_name, fixture_val)
+>             response = client.post(url)
+>             assert response.status_code == 403, (
+>                 f"POST {url} as {role} expected 403, got {response.status_code}"
+>             )

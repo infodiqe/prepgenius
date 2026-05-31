@@ -179,11 +179,14 @@ CORS_ALLOW_CREDENTIALS = True
 # ── OpenAPI (drf-spectacular) ─────────────────────────────────────────────────
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "PrepGenius AI API",
-    "DESCRIPTION": "Personalized Learning & Assessment Platform for Regional Competitive Exams",
-    "VERSION": "1.0.0",
+    "TITLE": "PrepGenius API",
+    "DESCRIPTION": "PrepGenius Competitive Exam Platform API",
+    "VERSION": "v1",
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
+    "ENUM_NAME_OVERRIDES": {
+        "ExamTypeEnum": ["qualifying", "entrance", "ranked"],
+    },
 }
 
 # ── Celery ────────────────────────────────────────────────────────────────────
