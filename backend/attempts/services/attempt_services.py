@@ -2,6 +2,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from django.db import transaction
+from django.utils import timezone
 
 from attempts.exceptions import (
     AttemptAlreadyScoredError,
@@ -35,12 +36,64 @@ _VALID_ATTEMPT_TRANSITIONS = {
     "scored": [],
 }
 _UNSET = object()
+_DEFAULT_CORRECT_MARKS = Decimal("1")
+_DEFAULT_NEGATIVE_MARKS = Decimal("0")
 
 
 def _validate_attempt_transition(from_status: str, to_status: str) -> None:
     allowed = _VALID_ATTEMPT_TRANSITIONS.get(from_status, [])
     if to_status not in allowed:
         raise InvalidAttemptTransitionError(from_status, to_status)
+
+
+def _decimal(value, default: Decimal) -> Decimal:
+    if value is None:
+        return default
+    return Decimal(str(value))
+
+
+def _marks_per_correct(exam_rules: dict) -> Decimal:
+    if "marks_per_question" in exam_rules:
+        return _decimal(exam_rules.get("marks_per_question"), _DEFAULT_CORRECT_MARKS)
+
+    total_marks = exam_rules.get("total_marks")
+    total_questions = exam_rules.get("total_questions")
+    if total_marks is not None and total_questions:
+        return _decimal(total_marks, _DEFAULT_CORRECT_MARKS) / _decimal(
+            total_questions, _DEFAULT_CORRECT_MARKS
+        )
+
+    return _DEFAULT_CORRECT_MARKS
+
+
+def _negative_marks(exam_rules: dict) -> Decimal:
+    negative_marking = exam_rules.get("negative_marking", False)
+    if negative_marking is False:
+        return _DEFAULT_NEGATIVE_MARKS
+    if isinstance(negative_marking, dict):
+        if not negative_marking.get("enabled", True):
+            return _DEFAULT_NEGATIVE_MARKS
+        return _decimal(
+            negative_marking.get("marks")
+            or negative_marking.get("penalty")
+            or negative_marking.get("marks_per_wrong"),
+            _DEFAULT_NEGATIVE_MARKS,
+        )
+    return _decimal(
+        exam_rules.get("negative_marks")
+        or exam_rules.get("negative_marks_per_question")
+        or exam_rules.get("penalty_per_wrong"),
+        _DEFAULT_NEGATIVE_MARKS,
+    )
+
+
+def _mock_question_marks(attempt: ExamAttempt) -> dict[UUID, Decimal]:
+    if not attempt.mock_test_id:
+        return {}
+    return {
+        item.question_id: Decimal(str(item.marks))
+        for item in attempt.mock_test.questions.select_related("question").all()
+    }
 
 
 # ── Mock Test ──────────────────────────────────────────────────────────────
@@ -221,10 +274,12 @@ def start_attempt(*, attempt_id: UUID) -> ExamAttempt:
             raise MockTestNotPublishedError(str(attempt.mock_test_id))
         attempt.duration_seconds = mock_test.duration_seconds
         attempt.total_questions = mock_test.questions.count()
+    elif attempt.duration_seconds is None:
+        duration_minutes = attempt.exam.exam_rules.get("duration_minutes")
+        if duration_minutes is not None:
+            attempt.duration_seconds = int(duration_minutes) * 60
 
     with transaction.atomic():
-        from django.utils import timezone
-
         attempt.status = "in_progress"
         attempt.started_at = timezone.now()
         attempt.save(
@@ -252,8 +307,6 @@ def submit_attempt(*, attempt_id: UUID) -> ExamAttempt:
         raise InvalidAttemptTransitionError(attempt.status, "submitted")
 
     with transaction.atomic():
-        from django.utils import timezone
-
         attempt.status = "submitted"
         attempt.submitted_at = timezone.now()
 
@@ -287,6 +340,11 @@ def score_attempt(*, attempt_id: UUID) -> ExamAttempt:
         answers = list(
             attempt.answers.select_related("question").all()
         )
+        exam_rules = attempt.exam.exam_rules or {}
+        default_correct_marks = _marks_per_correct(exam_rules)
+        negative_marks = _negative_marks(exam_rules)
+        mock_marks = _mock_question_marks(attempt)
+
         correct = sum(1 for a in answers if a.is_correct)
         answered = sum(
             1
@@ -306,13 +364,25 @@ def score_attempt(*, attempt_id: UUID) -> ExamAttempt:
                 str(round(correct / answered * 100, 2))
             ) if answered > 0 else Decimal("0")
 
-        if attempt.mock_test and attempt.mock_test_id:
-            total_marks = sum(
-                Decimal(str(q.marks))
-                for q in attempt.mock_test.questions.select_related("question").all()
-            )
-            attempt.max_score = total_marks
-            attempt.score = Decimal(str(correct)) * Decimal("1")  # assumes +1 per correct
+        score = Decimal("0")
+        for answer in answers:
+            if answer.state not in ("answered", "answered_marked"):
+                continue
+            question_marks = mock_marks.get(answer.question_id, default_correct_marks)
+            if answer.is_correct is True:
+                score += question_marks
+            elif answer.is_correct is False:
+                score -= negative_marks
+
+        if mock_marks:
+            attempt.max_score = sum(mock_marks.values())
+        else:
+            configured_total = exam_rules.get("total_marks")
+            if configured_total is not None:
+                attempt.max_score = _decimal(configured_total, Decimal("0"))
+            else:
+                attempt.max_score = Decimal(str(attempt.total_questions)) * default_correct_marks
+        attempt.score = score
 
         attempt.save(
             update_fields=[
@@ -328,6 +398,28 @@ def score_attempt(*, attempt_id: UUID) -> ExamAttempt:
         attempt.refresh_from_db()
 
     return attempt
+
+
+def submit_expired_attempts(*, now=None) -> int:
+    now = now or timezone.now()
+    submitted_count = 0
+    expired_attempts = ExamAttempt.objects.filter(
+        status="in_progress",
+        started_at__isnull=False,
+        duration_seconds__isnull=False,
+    )
+
+    for attempt in expired_attempts:
+        elapsed = (now - attempt.started_at).total_seconds()
+        if elapsed < attempt.duration_seconds:
+            continue
+        try:
+            submit_attempt(attempt_id=attempt.id)
+        except InvalidAttemptTransitionError:
+            continue
+        submitted_count += 1
+
+    return submitted_count
 
 
 # ── User Answers ──────────────────────────────────────────────────────────

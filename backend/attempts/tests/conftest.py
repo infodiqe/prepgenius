@@ -23,6 +23,12 @@ from .factories import (
 )
 
 
+def pytest_collection_modifyitems(items):
+    for item in items:
+        if "attempts/tests" in str(item.fspath).replace("\\", "/"):
+            item.add_marker(pytest.mark.django_db)
+
+
 # ── API Client Fixtures ───────────────────────────────────────────────
 
 
@@ -115,14 +121,16 @@ def seed_roles():
 
 def _make_role_api_client(role_name: str):
     @pytest.fixture
-    def _client(anonymous_client, seed_roles):
+    def _client(seed_roles):
         role_map, _ = seed_roles
+        client = APIClient()
         user = UserFactory(is_email_verified=True, status="active")
         UserRole.objects.create(user=user, role=role_map[role_name])
         refresh = RefreshToken.for_user(user)
-        anonymous_client.cookies["access_token"] = str(refresh.access_token)
-        anonymous_client.cookies["refresh_token"] = str(refresh)
-        return anonymous_client
+        client.cookies["access_token"] = str(refresh.access_token)
+        client.cookies["refresh_token"] = str(refresh)
+        client.user = user
+        return client
 
     return _client
 
@@ -130,6 +138,21 @@ def _make_role_api_client(role_name: str):
 student_api_client = _make_role_api_client("student")
 content_manager_api_client = _make_role_api_client("content_manager")
 platform_admin_api_client = _make_role_api_client("platform_admin")
+
+
+@pytest.fixture(autouse=True)
+def align_student_attempt_owner(request):
+    if (
+        "student_api_client" not in request.fixturenames
+        or "attempt" not in request.fixturenames
+    ):
+        return
+
+    client = request.getfixturevalue("student_api_client")
+    attempt = request.getfixturevalue("attempt")
+    if attempt.user_id != client.user.id:
+        attempt.user = client.user
+        attempt.save(update_fields=["user"])
 
 
 # ── Domain Fixtures ───────────────────────────────────────────────────

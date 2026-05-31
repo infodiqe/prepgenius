@@ -87,6 +87,13 @@ class AttemptBaseView(APIView):
         return super().handle_exception(exc)
 
 
+def _get_owned_attempt_or_404(*, attempt_id: UUID, user_id: UUID):
+    attempt = get_exam_attempt_by_id(attempt_id=attempt_id)
+    if attempt.user_id != user_id:
+        raise NotFound(str(ExamAttemptNotFoundError(str(attempt_id))))
+    return attempt
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # MOCK TESTS
 # ═══════════════════════════════════════════════════════════════════════
@@ -368,9 +375,9 @@ class AttemptDetail(AttemptBaseView):
     permission_classes = [IsStudent]
 
     def get(self, request, pk: UUID):
-        attempt = get_exam_attempt_by_id(attempt_id=pk)
-        if attempt.user_id != request.user.id:
-            raise NotFound(str(ExamAttemptNotFoundError(str(pk))))
+        attempt = _get_owned_attempt_or_404(
+            attempt_id=pk, user_id=request.user.id
+        )
         return Response(ScoredAttemptDetailSerializer(attempt).data)
 
 
@@ -391,6 +398,7 @@ class AttemptStart(AttemptBaseView):
     permission_classes = [IsStudent]
 
     def post(self, request, pk: UUID):
+        _get_owned_attempt_or_404(attempt_id=pk, user_id=request.user.id)
         attempt = start_attempt(attempt_id=pk)
         return Response(ExamAttemptReadSerializer(attempt).data)
 
@@ -412,6 +420,7 @@ class AttemptSubmit(AttemptBaseView):
     permission_classes = [IsStudent]
 
     def post(self, request, pk: UUID):
+        _get_owned_attempt_or_404(attempt_id=pk, user_id=request.user.id)
         attempt = submit_attempt(attempt_id=pk)
         return Response(ExamAttemptReadSerializer(attempt).data)
 
@@ -457,6 +466,9 @@ class UserAnswerList(AttemptBaseView):
     permission_classes = [IsStudent]
 
     def get(self, request, attempt_pk: UUID):
+        _get_owned_attempt_or_404(
+            attempt_id=attempt_pk, user_id=request.user.id
+        )
         answers = list_answers_for_attempt(attempt_id=attempt_pk)
         return Response(UserAnswerReadSerializer(answers, many=True).data)
 
@@ -480,6 +492,9 @@ class UserAnswerSave(AttemptBaseView):
     permission_classes = [IsStudent]
 
     def post(self, request, attempt_pk: UUID):
+        _get_owned_attempt_or_404(
+            attempt_id=attempt_pk, user_id=request.user.id
+        )
         serializer = UserAnswerSaveSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         answer = save_answer(
@@ -506,6 +521,9 @@ class UserAnswerBulkSave(AttemptBaseView):
     permission_classes = [IsStudent]
 
     def post(self, request, attempt_pk: UUID):
+        _get_owned_attempt_or_404(
+            attempt_id=attempt_pk, user_id=request.user.id
+        )
         serializer = UserAnswerBulkSaveSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         answers = []

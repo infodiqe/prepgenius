@@ -40,7 +40,7 @@ class TestMockTestCreateSerializer:
 
     def test_type_choices(self):
         field = MockTestCreateSerializer().fields["type"]
-        assert [c for c, *_ in field.choices] == [
+        assert list(field.choices.keys()) == [
             "system", "previous_year", "custom"
         ]
 
@@ -83,7 +83,7 @@ class TestExamAttemptCreateSerializer:
 
     def test_attempt_type_choices(self):
         field = ExamAttemptCreateSerializer().fields["attempt_type"]
-        assert [c for c, *_ in field.choices] == [
+        assert list(field.choices.keys()) == [
             "topic", "subject", "mixed",
             "previous_year", "full_mock", "daily"
         ]
@@ -112,7 +112,7 @@ class TestUserAnswerSaveSerializer:
 
     def test_state_choices(self):
         field = UserAnswerSaveSerializer().fields["state"]
-        assert [c for c, *_ in field.choices] == [
+        assert list(field.choices.keys()) == [
             "not_visited", "visited", "answered",
             "marked", "answered_marked"
         ]

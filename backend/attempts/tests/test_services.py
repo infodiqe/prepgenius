@@ -1,6 +1,10 @@
 """Service layer tests for the attempts app."""
+from decimal import Decimal
+from datetime import timedelta
+
 import pytest
 from django.db import transaction
+from django.utils import timezone
 
 from attempts.exceptions import (
     AttemptAlreadySubmittedError,
@@ -19,6 +23,7 @@ from attempts.services.attempt_services import (
     save_answer,
     score_attempt,
     start_attempt,
+    submit_expired_attempts,
     submit_attempt,
     update_mock_test,
 )
@@ -176,6 +181,88 @@ class TestScoreAttempt:
         submit_attempt(attempt_id=attempt.id)
         scored = score_attempt(attempt_id=attempt.id)
         assert scored.correct >= 0
+
+    def test_scores_using_exam_rules_negative_marking(
+        self, exam, user, published_question
+    ):
+        exam.exam_rules = {
+            "marks_per_question": 2,
+            "negative_marking": {"enabled": True, "marks": 0.5},
+            "total_marks": 2,
+        }
+        exam.save(update_fields=["exam_rules"])
+        attempt = create_attempt(
+            user_id=user.id,
+            exam_id=exam.id,
+            attempt_type="topic",
+            duration_seconds=600,
+        )
+        start_attempt(attempt_id=attempt.id)
+        wrong = QuestionOptionFactory(
+            question=published_question, is_correct=False
+        )
+        save_answer(
+            attempt_id=attempt.id,
+            question_id=published_question.id,
+            selected_option_id=wrong.id,
+            state="answered",
+        )
+        submit_attempt(attempt_id=attempt.id)
+
+        scored = score_attempt(attempt_id=attempt.id)
+
+        assert scored.score == Decimal("-0.50")
+        assert scored.max_score == Decimal("2.00")
+
+    def test_scores_without_negative_marking_when_config_disabled(
+        self, exam, user, published_question
+    ):
+        exam.exam_rules = {
+            "marks_per_question": 2,
+            "negative_marking": False,
+            "total_marks": 2,
+        }
+        exam.save(update_fields=["exam_rules"])
+        attempt = create_attempt(
+            user_id=user.id,
+            exam_id=exam.id,
+            attempt_type="topic",
+            duration_seconds=600,
+        )
+        start_attempt(attempt_id=attempt.id)
+        wrong = QuestionOptionFactory(
+            question=published_question, is_correct=False
+        )
+        save_answer(
+            attempt_id=attempt.id,
+            question_id=published_question.id,
+            selected_option_id=wrong.id,
+            state="answered",
+        )
+        submit_attempt(attempt_id=attempt.id)
+
+        scored = score_attempt(attempt_id=attempt.id)
+
+        assert scored.score == Decimal("0")
+
+
+class TestAutoSubmitExpiredAttempts:
+    def test_submits_expired_in_progress_attempt(self, exam, user):
+        attempt = create_attempt(
+            user_id=user.id,
+            exam_id=exam.id,
+            attempt_type="topic",
+            duration_seconds=60,
+        )
+        start_attempt(attempt_id=attempt.id)
+        attempt.started_at = timezone.now() - timedelta(seconds=61)
+        attempt.save(update_fields=["started_at"])
+
+        submitted = submit_expired_attempts()
+
+        attempt.refresh_from_db()
+        assert submitted == 1
+        assert attempt.status == "submitted"
 
 
 class TestSaveAnswer:

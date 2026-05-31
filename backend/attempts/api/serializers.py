@@ -108,7 +108,8 @@ class MockTestQuestionReadSerializer(serializers.ModelSerializer):
 
 class MockTestQuestionCreateSerializer(serializers.ModelSerializer):
     mock_test_id = serializers.UUIDField(
-        help_text="ID of the mock test"
+        required=False,
+        help_text="ID of the mock test. Optional when mock test is in the URL."
     )
     question_id = serializers.UUIDField(
         help_text="ID of the question to add"
