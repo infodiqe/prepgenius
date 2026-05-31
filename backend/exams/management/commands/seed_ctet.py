@@ -314,8 +314,6 @@ class Command(BaseCommand):
                 name=subject_name,
                 defaults={"position": subject_data["position"]},
             )
-            if subject_name not in [s.name for s in exam.subjects.all()]:
-                pass
 
             for topic_name, topic_data in subject_data["topics"].items():
                 total_topics += 1

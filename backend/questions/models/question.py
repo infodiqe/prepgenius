@@ -43,6 +43,14 @@ class Question(models.Model):
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
+        related_name="verified_questions",
+    )
+    claimed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="claimed_questions",
     )
     tags = models.JSONField(default=dict)
     embedding = VectorField(dimensions=1024, null=True, blank=True)
@@ -59,6 +67,10 @@ class Question(models.Model):
                 fields=["exam"],
                 name="ix_q_published",
                 condition=models.Q(review_status="published"),
+            ),
+            models.Index(
+                fields=["claimed_by"],
+                name="ix_q_claimed_by",
             ),
         ]
         # NOTE: Add HNSW index on `embedding` in production via RunSQL:
