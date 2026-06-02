@@ -1,12 +1,8 @@
-import { useTranslations } from "next-intl";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
-export default function HomePage() {
-  const t = useTranslations("home");
-
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24">
-      <h1 className="text-4xl font-bold">{t("title")}</h1>
-      <p className="mt-4 text-muted-foreground">{t("subtitle")}</p>
-    </main>
-  );
+export default async function RootPage() {
+  const cookieStore = await cookies();
+  const hasToken = !!cookieStore.get("access_token")?.value;
+  redirect(hasToken ? "/dashboard" : "/login");
 }
