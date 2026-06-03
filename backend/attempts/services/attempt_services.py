@@ -1,8 +1,11 @@
+import logging
 from decimal import Decimal
 from uuid import UUID
 
 from django.db import transaction
 from django.utils import timezone
+
+logger = logging.getLogger(__name__)
 
 from attempts.exceptions import (
     AttemptAlreadyScoredError,
@@ -324,6 +327,20 @@ def submit_attempt(*, attempt_id: UUID) -> ExamAttempt:
             ]
         )
         attempt.refresh_from_db()
+
+    # Score immediately after the submit transaction commits so students see
+    # results without a separate API call. If scoring fails (e.g. transient DB
+    # error), the attempt stays at 'submitted' and can be recovered via the
+    # admin POST /score/ endpoint or a future retry. The submit itself is
+    # already durable at this point.
+    try:
+        attempt = score_attempt(attempt_id=attempt.id)
+    except Exception:
+        logger.exception(
+            "Auto-score failed for attempt %s after submit; "
+            "attempt remains in 'submitted' status",
+            attempt.id,
+        )
 
     return attempt
 

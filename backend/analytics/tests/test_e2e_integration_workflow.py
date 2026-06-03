@@ -5,7 +5,6 @@ from rest_framework import status
 from django.core.cache import cache
 
 from attempts.models import ExamAttempt, UserAnswer
-from attempts.services.attempt_services import score_attempt
 from attempts.tests.factories import (
     ExamFactory,
     SubjectFactory,
@@ -81,15 +80,15 @@ class TestE2EWorkflowValidation:
         }, format="json")
         assert ans2_resp.status_code == status.HTTP_200_OK
 
-        # 4. Submit Attempt
+        # 4. Submit Attempt (auto-scoring fires inside submit_attempt)
         submit_url = reverse("attempts:attempt-submit", kwargs={"pk": attempt.id})
         submit_resp = student_api_client.post(submit_url)
         assert submit_resp.status_code == status.HTTP_200_OK
-        assert submit_resp.data["status"] == "submitted"
+        # submit_attempt now auto-scores; expect "scored" directly.
+        assert submit_resp.data["status"] == "scored"
 
-        # 5. Score Attempt (calculates section analytics & enqueues rollups)
-        # Note: score_attempt would enqueue task, let's run it and also execute the rollup logic synchronously
-        scored_attempt = score_attempt(attempt_id=attempt.id)
+        # 5. Verify scoring results from the DB record (no separate /score/ call needed)
+        scored_attempt = ExamAttempt.objects.get(id=attempt.id)
         assert scored_attempt.status == "scored"
         assert scored_attempt.correct == 1
         assert scored_attempt.incorrect == 1

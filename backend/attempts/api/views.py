@@ -427,9 +427,14 @@ class AttemptSubmit(AttemptBaseView):
 
 @extend_schema_view(
     post=extend_schema(
-        summary="Score attempt",
-        description="Score a submitted attempt (transition from submitted to scored). "
-                    "Requires content_manager or platform_admin role.",
+        summary="Score attempt (admin override)",
+        description=(
+            "Score a submitted attempt (transition from submitted to scored). "
+            "Scoring is normally triggered automatically when a student submits "
+            "via POST /submit/. This endpoint is an admin-only recovery path for "
+            "attempts that remain in 'submitted' status due to an auto-score "
+            "failure. Requires content_manager or platform_admin role."
+        ),
         responses={
             200: ScoredAttemptDetailSerializer,
             400: OpenApiResponse(description="Invalid transition"),

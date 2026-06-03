@@ -148,9 +148,10 @@ class TestSubmitAttempt:
             attempt_type="full_mock",
         )
         start_attempt(attempt_id=attempt.id)
-        submitted = submit_attempt(attempt_id=attempt.id)
-        assert submitted.status == "submitted"
-        assert submitted.submitted_at is not None
+        result = submit_attempt(attempt_id=attempt.id)
+        # submit_attempt now auto-scores, so the final status is "scored".
+        assert result.status == "scored"
+        assert result.submitted_at is not None
 
     def test_submitted_sets_time_taken(self, exam, user):
         attempt = create_attempt(
@@ -158,15 +159,29 @@ class TestSubmitAttempt:
             exam_id=exam.id,
             attempt_type="full_mock",
         )
-        import time as time_module
         start_attempt(attempt_id=attempt.id)
-        submitted = submit_attempt(attempt_id=attempt.id)
-        assert submitted.time_taken_seconds is not None
+        result = submit_attempt(attempt_id=attempt.id)
+        assert result.time_taken_seconds is not None
+
+
+def _force_submitted(attempt) -> None:
+    """Set attempt to 'submitted' directly in the DB, bypassing submit_attempt().
+
+    submit_attempt() now auto-scores, so tests that need to call score_attempt()
+    separately must use this helper to place the attempt in the 'submitted' state
+    without triggering auto-scoring.
+    """
+    from django.utils import timezone as tz
+
+    attempt.status = "submitted"
+    attempt.submitted_at = tz.now()
+    attempt.save(update_fields=["status", "submitted_at"])
+    attempt.refresh_from_db()
 
 
 class TestScoreAttempt:
     def test_scores_attempt(self, attempt):
-        submitted = submit_attempt(attempt_id=attempt.id)
+        _force_submitted(attempt)
         scored = score_attempt(attempt_id=attempt.id)
         assert scored.status == "scored"
 
@@ -178,7 +193,7 @@ class TestScoreAttempt:
             question_id=published_question.id,
             state="answered",
         )
-        submit_attempt(attempt_id=attempt.id)
+        _force_submitted(attempt)
         scored = score_attempt(attempt_id=attempt.id)
         assert scored.correct >= 0
 
@@ -207,7 +222,7 @@ class TestScoreAttempt:
             selected_option_id=wrong.id,
             state="answered",
         )
-        submit_attempt(attempt_id=attempt.id)
+        _force_submitted(attempt)
 
         scored = score_attempt(attempt_id=attempt.id)
 
@@ -239,7 +254,7 @@ class TestScoreAttempt:
             selected_option_id=wrong.id,
             state="answered",
         )
-        submit_attempt(attempt_id=attempt.id)
+        _force_submitted(attempt)
 
         scored = score_attempt(attempt_id=attempt.id)
 
@@ -258,11 +273,12 @@ class TestAutoSubmitExpiredAttempts:
         attempt.started_at = timezone.now() - timedelta(seconds=61)
         attempt.save(update_fields=["started_at"])
 
-        submitted = submit_expired_attempts()
+        processed = submit_expired_attempts()
 
         attempt.refresh_from_db()
-        assert submitted == 1
-        assert attempt.status == "submitted"
+        assert processed == 1
+        # submit_attempt now auto-scores, so the final status is "scored".
+        assert attempt.status == "scored"
 
 
 class TestSaveAnswer:
@@ -277,9 +293,11 @@ class TestSaveAnswer:
         assert answer.question_id == published_question.id
         assert answer.time_spent_seconds == 30
 
-    def test_rejects_submitted_attempt(
+    def test_rejects_non_in_progress_attempt(
         self, attempt, published_question
     ):
+        # submit_attempt auto-scores, leaving status="scored".
+        # save_answer rejects any attempt that is not "in_progress".
         submit_attempt(attempt_id=attempt.id)
         with pytest.raises(AttemptAlreadySubmittedError):
             save_answer(

@@ -237,7 +237,8 @@ class TestAttemptSubmit:
         )
         response = student_api_client.post(url)
         assert response.status_code == status.HTTP_200_OK
-        assert response.data["status"] == "submitted"
+        # submit_attempt now auto-scores; final status is "scored".
+        assert response.data["status"] == "scored"
         assert response.data["submitted_at"] is not None
 
     def test_submit_already_submitted_fails(
@@ -247,21 +248,33 @@ class TestAttemptSubmit:
             "attempts:attempt-submit",
             kwargs={"pk": attempt.id},
         )
+        # First submit succeeds and auto-scores (status → "scored").
         student_api_client.post(submit_url)
+        # Second submit on a scored attempt is an invalid transition → 400.
         response = student_api_client.post(submit_url)
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
 
 class TestAttemptScore:
-    def test_score_attempt(
-        self, content_manager_api_client, student_api_client, attempt
-    ):
-        submit_url = reverse(
-            "attempts:attempt-submit",
-            kwargs={"pk": attempt.id},
-        )
-        student_api_client.post(submit_url)
+    """Tests for the admin-only POST /score/ recovery endpoint.
 
+    Normal scoring is now triggered automatically inside submit_attempt().
+    This endpoint is a manual fallback for attempts that remain in 'submitted'
+    status due to an auto-score failure.
+    """
+
+    def _force_submitted(self, attempt):
+        """Place the attempt in 'submitted' without triggering auto-score."""
+        from django.utils import timezone as tz
+        attempt.status = "submitted"
+        attempt.submitted_at = tz.now()
+        attempt.save(update_fields=["status", "submitted_at"])
+        attempt.refresh_from_db()
+
+    def test_admin_can_score_submitted_attempt(
+        self, content_manager_api_client, attempt
+    ):
+        self._force_submitted(attempt)
         score_url = reverse(
             "attempts:attempt-score",
             kwargs={"pk": attempt.id},
@@ -269,6 +282,44 @@ class TestAttemptScore:
         response = content_manager_api_client.post(score_url)
         assert response.status_code == status.HTTP_200_OK
         assert response.data["status"] == "scored"
+
+    def test_student_cannot_call_score_endpoint(
+        self, student_api_client, attempt
+    ):
+        self._force_submitted(attempt)
+        score_url = reverse(
+            "attempts:attempt-score",
+            kwargs={"pk": attempt.id},
+        )
+        response = student_api_client.post(score_url)
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_submit_auto_scores_attempt(self, student_api_client, attempt):
+        """Submit endpoint now returns status='scored' immediately."""
+        submit_url = reverse(
+            "attempts:attempt-submit",
+            kwargs={"pk": attempt.id},
+        )
+        response = student_api_client.post(submit_url)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["status"] == "scored"
+
+    def test_score_already_scored_attempt_returns_400(
+        self, content_manager_api_client, student_api_client, attempt
+    ):
+        """Calling /score/ on an already-scored attempt is an invalid transition."""
+        submit_url = reverse(
+            "attempts:attempt-submit",
+            kwargs={"pk": attempt.id},
+        )
+        student_api_client.post(submit_url)  # auto-scores → "scored"
+
+        score_url = reverse(
+            "attempts:attempt-score",
+            kwargs={"pk": attempt.id},
+        )
+        response = content_manager_api_client.post(score_url)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
 
 
 # ═══════════════════════════════════════════════════════════════════════
