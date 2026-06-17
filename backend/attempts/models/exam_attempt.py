@@ -74,6 +74,14 @@ class ExamAttempt(models.Model):
             models.Index(
                 fields=["mock_test"], name="ix_ea_mock_test"
             ),
+            # PH-1.3: bounds the auto-submit expiry sweep (filters
+            # status="in_progress" then compares started_at). Partial index keeps
+            # it tiny — only in-progress rows, which is the hot set.
+            models.Index(
+                fields=["status", "started_at"],
+                name="ix_ea_expiry_scan",
+                condition=models.Q(status="in_progress"),
+            ),
         ]
 
     def __str__(self) -> str:

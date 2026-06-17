@@ -1,0 +1,135 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+# Cancel superseded runs on the same ref so we don't burn CI minutes on stale commits.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege: the test job only needs to read the repository.
+permissions:
+  contents: read
+
+jobs:
+  backend-tests:
+    name: Backend tests (pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      # config.settings.test runs on SQLite in-memory + LocMemCache + eager Celery
+      # (see backend/config/settings/test.py and dev.py), so no Postgres/Redis
+      # service containers are required. SECRET_KEY is the only setting read
+      # without a default (backend/config/settings/base.py); a throwaway value is
+      # fine because tests never issue real tokens or reach external services.
+      SECRET_KEY: ci-test-secret-key-not-used-in-production
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run test suite
+        # pytest reads backend/pyproject.toml, which pins --ds=config.settings.test.
+        run: pytest
+
+  migration-checks:
+    name: Migration checks (Postgres)
+    runs-on: ubuntu-latest
+    # No `needs:` — runs in parallel with backend-tests. This job validates the
+    # production migration path against a real Postgres+pgvector database and runs
+    # NO pytest, so the ~900-test suite is never executed twice (PH-6.2).
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      # Validate the real production startup/migration path (config.settings.prod),
+      # not the SQLite test path. SECRET_KEY/ALLOWED_HOSTS have no defaults in prod;
+      # the values are throwaway because this job only migrates and runs checks.
+      DJANGO_SETTINGS_MODULE: config.settings.prod
+      SECRET_KEY: ci-migration-checks-secret-not-used-in-production
+      ALLOWED_HOSTS: localhost
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/prepgenius_ci
+    services:
+      postgres:
+        # Same image/major version as the docker-compose `db` service so the
+        # `vector` extension (and friends) used by init.sql are available.
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: prepgenius_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d prepgenius_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Ensure PostgreSQL client (psql) is available
+        # ubuntu-latest ships psql, but detect-then-install keeps the job robust
+        # if a future runner image drops it.
+        run: |
+          if command -v psql >/dev/null 2>&1; then
+            echo "psql already present: $(psql --version)"
+          else
+            echo "psql not found; installing postgresql-client"
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+
+      - name: Detect migration drift
+        # Fails (non-zero) if a model change has no accompanying migration.
+        # --no-input keeps it deterministic on the non-interactive runner: if a
+        # drift ever needs a questioner decision, the command errors out instead
+        # of blocking on a prompt. The reachable Postgres service lets Django's
+        # consistent-migration-history check run without a connection timeout.
+        run: python manage.py makemigrations --check --dry-run --no-input
+
+      - name: Bootstrap database extensions (matches production init.sql)
+        # The bare Postgres service does not auto-run init.sql (that is a
+        # docker-compose volume mount), so apply it explicitly. Without the
+        # `vector` extension, migrating the VectorField column would fail.
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -d prepgenius_ci \
+            -v ON_ERROR_STOP=1 \
+            -f ../infrastructure/docker/postgres/init.sql
+
+      - name: Apply migrations on a fresh database
+        run: python manage.py migrate --noinput
+
+      - name: Run Django system checks (production settings)
+        run: python manage.py check

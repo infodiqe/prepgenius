@@ -11,6 +11,7 @@ from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, Ou
 
 from accounts.permissions import HasRole, IsInstitutionScoped, IsPlatformAdmin, IsStudent
 
+from accounts.exceptions import AccountLockedError
 from accounts.models import EmailVerificationToken, PasswordResetToken, Permission, Role, User, UserConsent
 from accounts.services.auth_service import login_user
 from accounts.services.password_service import confirm_password_reset, request_password_reset
@@ -244,6 +245,116 @@ class TestLoginUser:
         except AuthenticationFailed as exc:
             msg_wrong_pw = str(exc.detail)
         assert msg_no_user == msg_wrong_pw == "Invalid credentials"
+
+
+class TestLoginLockout:
+    """PH-4: per-account brute-force lockout enforced in the auth service."""
+
+    def _fail(self, email, times):
+        results = []
+        for _ in range(times):
+            try:
+                login_user(email=email, password="WrongPassword!")
+            except (AuthenticationFailed, AccountLockedError) as exc:
+                results.append(exc)
+        return results
+
+    def test_locks_after_threshold_consecutive_failures(self, settings):
+        settings.ACCOUNT_LOCKOUT_THRESHOLD = 3
+        user = UserFactory(verified=True)
+
+        # First (threshold - 1) failures are plain invalid-credential errors.
+        for _ in range(2):
+            with pytest.raises(AuthenticationFailed, match="Invalid credentials"):
+                login_user(email=user.email, password="WrongPassword!")
+
+        # The threshold-th failure trips the lock.
+        with pytest.raises(AccountLockedError):
+            login_user(email=user.email, password="WrongPassword!")
+
+        user.refresh_from_db()
+        assert user.locked_until is not None
+        assert user.locked_until > timezone.now()
+        # Counter is zeroed when the lock is applied.
+        assert user.failed_login_attempts == 0
+
+    def test_locked_account_rejects_correct_password(self, settings):
+        settings.ACCOUNT_LOCKOUT_THRESHOLD = 3
+        user = UserFactory(verified=True)
+        user.locked_until = timezone.now() + timedelta(minutes=15)
+        user.save(update_fields=["locked_until"])
+
+        with pytest.raises(AccountLockedError):
+            login_user(email=user.email, password="TestPass123!")
+
+    def test_lock_expires_after_window(self, settings):
+        user = UserFactory(verified=True)
+        user.locked_until = timezone.now() - timedelta(seconds=1)
+        user.failed_login_attempts = 0
+        user.save(update_fields=["locked_until", "failed_login_attempts"])
+
+        access, _ = login_user(email=user.email, password="TestPass123!")
+        assert access is not None
+
+        user.refresh_from_db()
+        assert user.locked_until is None
+        assert user.failed_login_attempts == 0
+
+    def test_successful_login_resets_failure_counter(self, settings):
+        settings.ACCOUNT_LOCKOUT_THRESHOLD = 5
+        user = UserFactory(verified=True)
+        self._fail(user.email, 3)
+        user.refresh_from_db()
+        assert user.failed_login_attempts == 3
+
+        login_user(email=user.email, password="TestPass123!")
+
+        user.refresh_from_db()
+        assert user.failed_login_attempts == 0
+        assert user.locked_until is None
+
+    def test_failed_increments_persist_across_attempts(self, settings):
+        settings.ACCOUNT_LOCKOUT_THRESHOLD = 10
+        user = UserFactory(verified=True)
+        self._fail(user.email, 4)
+        user.refresh_from_db()
+        assert user.failed_login_attempts == 4
+
+    def test_unknown_email_never_locks_and_creates_no_state(self, settings):
+        settings.ACCOUNT_LOCKOUT_THRESHOLD = 2
+        before = User.objects.count()
+
+        results = self._fail("ghost@example.com", 5)
+
+        # Always plain invalid-credentials; never an AccountLockedError.
+        assert all(isinstance(r, AuthenticationFailed) for r in results)
+        assert all(not isinstance(r, AccountLockedError) for r in results)
+        # No phantom rows created for the unknown address.
+        assert User.objects.count() == before
+
+    def test_threshold_is_configurable(self, settings):
+        settings.ACCOUNT_LOCKOUT_THRESHOLD = 2
+        user = UserFactory(verified=True)
+
+        with pytest.raises(AuthenticationFailed):
+            login_user(email=user.email, password="WrongPassword!")
+        with pytest.raises(AccountLockedError):
+            login_user(email=user.email, password="WrongPassword!")
+
+    def test_deleted_user_is_not_lockable(self, settings):
+        """Deleted accounts are excluded from lockout tracking entirely."""
+        settings.ACCOUNT_LOCKOUT_THRESHOLD = 2
+        user = UserFactory(deleted=True)
+
+        # Wrong password on a deleted account stays a generic failure and never
+        # accumulates lockout state.
+        for _ in range(3):
+            with pytest.raises(AuthenticationFailed):
+                login_user(email=user.email, password="WrongPassword!")
+
+        user.refresh_from_db()
+        assert user.failed_login_attempts == 0
+        assert user.locked_until is None
 
 
 # ─── Task 8: Password reset request ───────────────────────────────────────

@@ -299,17 +299,21 @@ def start_attempt(*, attempt_id: UUID) -> ExamAttempt:
 
 
 def submit_attempt(*, attempt_id: UUID) -> ExamAttempt:
-    try:
-        attempt = get_exam_attempt_by_id(attempt_id=attempt_id)
-    except ExamAttempt.DoesNotExist:
-        raise ExamAttemptNotFoundError(str(attempt_id))
-
-    _validate_attempt_transition(attempt.status, "submitted")
-
-    if attempt.status != "in_progress":
-        raise InvalidAttemptTransitionError(attempt.status, "submitted")
-
     with transaction.atomic():
+        # B2: lock the row, then re-validate the transition under the lock. This
+        # serialises a manual submit against the auto-submit sweep (and any other
+        # concurrent finalize): whoever loses the race observes the already-
+        # advanced status and is cleanly rejected instead of regressing it.
+        attempt = (
+            ExamAttempt.objects.select_for_update()
+            .filter(pk=attempt_id)
+            .first()
+        )
+        if attempt is None:
+            raise ExamAttemptNotFoundError(str(attempt_id))
+
+        _validate_attempt_transition(attempt.status, "submitted")
+
         attempt.status = "submitted"
         attempt.submitted_at = timezone.now()
 
@@ -346,14 +350,22 @@ def submit_attempt(*, attempt_id: UUID) -> ExamAttempt:
 
 
 def score_attempt(*, attempt_id: UUID) -> ExamAttempt:
-    try:
-        attempt = get_exam_attempt_by_id(attempt_id=attempt_id)
-    except ExamAttempt.DoesNotExist:
-        raise ExamAttemptNotFoundError(str(attempt_id))
-
-    _validate_attempt_transition(attempt.status, "scored")
-
     with transaction.atomic():
+        # B2: lock the row and re-validate under the lock so an already-scored
+        # attempt is rejected rather than scored twice (no duplicate scoring,
+        # no scored → submitted regression).
+        locked = (
+            ExamAttempt.objects.select_for_update()
+            .filter(pk=attempt_id)
+            .first()
+        )
+        if locked is None:
+            raise ExamAttemptNotFoundError(str(attempt_id))
+
+        _validate_attempt_transition(locked.status, "scored")
+
+        # Re-fetch with relations; the row is already locked in this transaction.
+        attempt = get_exam_attempt_by_id(attempt_id=attempt_id)
         answers = list(
             attempt.answers.select_related("question__subtopic__topic__subject").all()
         )
@@ -431,23 +443,65 @@ def score_attempt(*, attempt_id: UUID) -> ExamAttempt:
 
 
 def submit_expired_attempts(*, now=None) -> int:
+    """Auto-submit in-progress attempts whose server-side timer has elapsed.
+
+    PH-1.2: each candidate is finalized under a row-level lock taken with
+    ``select_for_update(skip_locked=True)`` so a concurrent manual submit and a
+    scheduled sweep (or two overlapping sweeps) can never double-process the same
+    attempt. The lock is acquired *and* the ``in_progress`` status is re-checked
+    inside the transaction, so an attempt already being submitted elsewhere is
+    skipped rather than fought over. ``skip_locked`` keeps the sweep moving past
+    rows another worker holds instead of blocking on them.
+
+    Idempotent and retry-safe: re-running with no newly-expired attempts is a
+    no-op that returns 0.
+    """
     now = now or timezone.now()
     submitted_count = 0
-    expired_attempts = ExamAttempt.objects.filter(
-        status="in_progress",
-        started_at__isnull=False,
-        duration_seconds__isnull=False,
+
+    # Collect candidate IDs first, then lock/finalize each in its own short
+    # transaction — this keeps lock scope per-attempt rather than holding a lock
+    # across the whole result set.
+    candidate_ids = list(
+        ExamAttempt.objects.filter(
+            status="in_progress",
+            started_at__isnull=False,
+            duration_seconds__isnull=False,
+        ).values_list("id", flat=True)
     )
 
-    for attempt in expired_attempts:
-        elapsed = (now - attempt.started_at).total_seconds()
-        if elapsed < attempt.duration_seconds:
-            continue
-        try:
-            submit_attempt(attempt_id=attempt.id)
-        except InvalidAttemptTransitionError:
-            continue
-        submitted_count += 1
+    for attempt_id in candidate_ids:
+        with transaction.atomic():
+            attempt = (
+                ExamAttempt.objects.select_for_update(skip_locked=True)
+                .filter(id=attempt_id, status="in_progress")
+                .first()
+            )
+            # None ⇒ locked by another worker, or no longer in_progress
+            # (already submitted). Either way, not ours to process.
+            if attempt is None:
+                continue
+
+            if attempt.started_at is None or attempt.duration_seconds is None:
+                continue
+
+            elapsed = (now - attempt.started_at).total_seconds()
+            if elapsed < attempt.duration_seconds:
+                continue
+
+            try:
+                submit_attempt(attempt_id=attempt.id)
+            except InvalidAttemptTransitionError:
+                continue
+
+            submitted_count += 1
+            logger.info(
+                "Auto-submitted expired attempt %s (elapsed=%ss, "
+                "duration=%ss)",
+                attempt.id,
+                int(elapsed),
+                attempt.duration_seconds,
+            )
 
     return submitted_count
 

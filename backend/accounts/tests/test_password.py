@@ -2,9 +2,9 @@ from unittest.mock import patch
 
 import pytest
 from rest_framework import status
+from rest_framework.test import APIClient
 
-from accounts.models import PasswordResetToken
-
+from accounts.models import PasswordResetToken, User
 from .factories import PasswordResetTokenFactory, UserFactory
 
 pytestmark = pytest.mark.django_db
@@ -79,3 +79,84 @@ class TestPasswordResetConfirm:
         )
 
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
+
+
+CHANGE_URL = "/api/v1/auth/password/change/"
+
+
+class TestPasswordChange:
+    def test_unauthenticated_change_password_returns_401(self, api_client: APIClient) -> None:
+        resp = api_client.post(
+            CHANGE_URL,
+            {
+                "current_password": "TestPass123!",
+                "new_password": "NewStr0ng!Pass",
+                "new_password_confirm": "NewStr0ng!Pass",
+            },
+            format="json",
+        )
+        assert resp.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_wrong_current_password_returns_400(
+        self, auth_client: tuple[APIClient, User]
+    ) -> None:
+        client, user = auth_client
+        resp = client.post(
+            CHANGE_URL,
+            {
+                "current_password": "WrongPassword123!",
+                "new_password": "NewStr0ng!Pass",
+                "new_password_confirm": "NewStr0ng!Pass",
+            },
+            format="json",
+        )
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert "Incorrect current password" in str(resp.data)
+
+    def test_weak_new_password_returns_400(self, auth_client: tuple[APIClient, User]) -> None:
+        client, user = auth_client
+        resp = client.post(
+            CHANGE_URL,
+            {
+                "current_password": "TestPass123!",
+                "new_password": "short",
+                "new_password_confirm": "short",
+            },
+            format="json",
+        )
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_mismatch_new_password_returns_400(
+        self, auth_client: tuple[APIClient, User]
+    ) -> None:
+        client, user = auth_client
+        resp = client.post(
+            CHANGE_URL,
+            {
+                "current_password": "TestPass123!",
+                "new_password": "NewStr0ng!Pass",
+                "new_password_confirm": "DifferentPass123!",
+            },
+            format="json",
+        )
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert "New passwords do not match" in str(resp.data)
+
+    def test_successful_password_change(self, auth_client: tuple[APIClient, User]) -> None:
+        client, user = auth_client
+        resp = client.post(
+            CHANGE_URL,
+            {
+                "current_password": "TestPass123!",
+                "new_password": "NewStr0ng!Pass",
+                "new_password_confirm": "NewStr0ng!Pass",
+            },
+            format="json",
+        )
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data["detail"] == "Password changed successfully."
+
+        user.refresh_from_db()
+        assert user.check_password("NewStr0ng!Pass")
+        assert not user.check_password("TestPass123!")
+

@@ -8,6 +8,65 @@ pytestmark = pytest.mark.django_db
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
+class TestExamVisibility:
+    """B1: students see only active exams; management roles see all; inactive
+    exam detail is 404 for students."""
+
+    def _codes(self, response):
+        return {e["code"] for e in response.json()}
+
+    def test_student_list_excludes_inactive(
+        self, student_api_client, exam, inactive_exam
+    ):
+        response = student_api_client.get("/api/v1/exams/")
+        assert response.status_code == 200
+        codes = self._codes(response)
+        assert exam.code in codes
+        assert inactive_exam.code not in codes
+        assert all(e["is_active"] for e in response.json())
+
+    def test_content_manager_list_includes_inactive(
+        self, content_manager_api_client, exam, inactive_exam
+    ):
+        response = content_manager_api_client.get("/api/v1/exams/")
+        assert response.status_code == 200
+        codes = self._codes(response)
+        assert inactive_exam.code in codes
+
+    def test_platform_admin_list_includes_inactive(
+        self, platform_admin_api_client, exam, inactive_exam
+    ):
+        response = platform_admin_api_client.get("/api/v1/exams/")
+        assert response.status_code == 200
+        assert inactive_exam.code in self._codes(response)
+
+    def test_student_inactive_exam_detail_returns_404(
+        self, student_api_client, inactive_exam
+    ):
+        response = student_api_client.get(f"/api/v1/exams/{inactive_exam.id}/")
+        assert response.status_code == 404
+
+    def test_student_active_exam_detail_ok(self, student_api_client, exam):
+        response = student_api_client.get(f"/api/v1/exams/{exam.id}/")
+        assert response.status_code == 200
+
+    def test_content_manager_inactive_exam_detail_ok(
+        self, content_manager_api_client, inactive_exam
+    ):
+        response = content_manager_api_client.get(
+            f"/api/v1/exams/{inactive_exam.id}/"
+        )
+        assert response.status_code == 200
+
+    def test_student_inactive_exam_tree_returns_404(
+        self, student_api_client, inactive_exam
+    ):
+        response = student_api_client.get(
+            f"/api/v1/exams/{inactive_exam.id}/tree/"
+        )
+        assert response.status_code == 404
+
+
 class TestExamList:
     def test_returns_all_exams(self, platform_admin_api_client, exam, inactive_exam):
         response = platform_admin_api_client.get("/api/v1/exams/")

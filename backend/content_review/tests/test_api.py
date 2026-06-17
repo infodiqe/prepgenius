@@ -110,6 +110,19 @@ def draft_question(exam_hierarchy):
     )
 
 
+@pytest.fixture
+def ai_sme_review_question(exam_hierarchy):
+    """AI-origin question already escalated to sme_review (so a reviewer attempt
+    to approve it is the bypass under test)."""
+    return DraftQuestionFactory(
+        ai=True,
+        review_status="sme_review",
+        exam=exam_hierarchy["exam"],
+        subtopic=exam_hierarchy["subtopic"],
+        stem="An AI-generated question awaiting SME review.",
+    )
+
+
 def _make_api_client(role_name: str):
     @pytest.fixture
     def _client(seed_roles):
@@ -641,6 +654,76 @@ class TestSmeApproveQuestion:
             self.API_TPL.format(draft_question.id)
         )
         assert response.status_code == 403
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# P0-2: SME approval bypass prevention
+# A reviewer must not be able to mint an SME-level approval by approving a
+# question that is in sme_review via the reviewer /approve/ endpoint.
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class TestSmeApprovalBypassPrevention:
+    APPROVE_TPL = "/api/v1/questions/{}/approve/"
+    SME_APPROVE_TPL = "/api/v1/questions/{}/sme-approve/"
+
+    def _to_sme_review(self, question, reviewer_client):
+        reviewer_client.post(f"/api/v1/questions/{question.id}/submit/")
+        reviewer_client.post(f"/api/v1/questions/{question.id}/request-sme/")
+
+    def test_reviewer_cannot_approve_from_sme_review(
+        self, draft_question, content_reviewer_client
+    ):
+        self._to_sme_review(draft_question, content_reviewer_client)
+        response = content_reviewer_client.post(
+            self.APPROVE_TPL.format(draft_question.id)
+        )
+        # Reviewer-authority action against a sme_review question is rejected.
+        assert response.status_code == 400
+        draft_question.refresh_from_db()
+        assert draft_question.review_status == "sme_review"  # unchanged
+        # No approval (let alone an SME-level one) was created.
+        assert not ContentApproval.objects.filter(
+            question_id=draft_question.id
+        ).exists()
+
+    def test_reviewer_approve_from_in_review_records_reviewer_level(
+        self, draft_question, content_reviewer_client
+    ):
+        content_reviewer_client.post(
+            f"/api/v1/questions/{draft_question.id}/submit/"
+        )
+        response = content_reviewer_client.post(
+            self.APPROVE_TPL.format(draft_question.id)
+        )
+        assert response.status_code == 200
+        approval = ContentApproval.objects.get(question_id=draft_question.id)
+        assert approval.approval_level == "reviewer"
+
+    def test_sme_approve_records_sme_level(
+        self, draft_question, content_reviewer_client, sme_client
+    ):
+        self._to_sme_review(draft_question, content_reviewer_client)
+        response = sme_client.post(
+            self.SME_APPROVE_TPL.format(draft_question.id)
+        )
+        assert response.status_code == 200
+        approval = ContentApproval.objects.get(question_id=draft_question.id)
+        assert approval.approval_level == "sme"
+
+    def test_ai_content_cannot_be_published_via_reviewer_approval(
+        self, ai_sme_review_question, content_reviewer_client, content_manager_client
+    ):
+        """End-to-end: a reviewer cannot manufacture the SME approval that an
+        AI-origin question needs to publish."""
+        q = ai_sme_review_question
+        approve = content_reviewer_client.post(
+            self.APPROVE_TPL.format(q.id)
+        )
+        assert approve.status_code == 400  # reviewer can't approve from sme_review
+        assert not ContentApproval.objects.filter(
+            question_id=q.id, approval_level="sme"
+        ).exists()
 
 
 # ═══════════════════════════════════════════════════════════════════════

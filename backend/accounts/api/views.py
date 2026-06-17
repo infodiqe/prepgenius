@@ -1,10 +1,12 @@
 import logging
+from typing import Any
 
 from django.conf import settings
 from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import status
 from rest_framework.exceptions import AuthenticationFailed, ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
@@ -14,6 +16,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from accounts.api.serializers import (
     DeleteAccountSerializer,
     LoginSerializer,
+    PasswordChangeSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
     RegistrationSerializer,
@@ -23,10 +26,15 @@ from accounts.api.serializers import (
     VerifyEmailSerializer,
 )
 from accounts.cookie_utils import clear_auth_cookies, set_auth_cookies
+from accounts.exceptions import AccountLockedError
 from accounts.selectors.user_selectors import get_user_profile
 from accounts.services.auth_service import login_user
 from accounts.services.dpdp_service import delete_account, request_data_export
-from accounts.services.password_service import confirm_password_reset, request_password_reset
+from accounts.services.password_service import (
+    change_password,
+    confirm_password_reset,
+    request_password_reset,
+)
 from accounts.services.profile_service import update_user_profile
 from accounts.services.registration import create_user
 from accounts.services.verification import resend_verification, verify_email
@@ -147,6 +155,7 @@ class ResendVerificationView(APIView):
         responses={
             200: OpenApiResponse(description="Login successful. Access and refresh tokens set as httpOnly cookies."),
             401: OpenApiResponse(description="Invalid credentials"),
+            423: OpenApiResponse(description="Account temporarily locked after too many failed login attempts"),
         },
         tags=["auth"],
     ),
@@ -164,6 +173,11 @@ class LoginView(APIView):
             access_token, refresh_token = login_user(
                 email=serializer.validated_data["email"],
                 password=serializer.validated_data["password"],
+            )
+        except AccountLockedError as exc:
+            return Response(
+                {"detail": exc.detail},
+                status=status.HTTP_423_LOCKED,
             )
         except AuthenticationFailed as exc:
             return Response(
@@ -424,3 +438,42 @@ class AccountDeleteView(APIView):
         )
         clear_auth_cookies(response)
         return response
+
+
+@extend_schema_view(
+    post=extend_schema(
+        operation_id="auth_password_change",
+        summary="Change user password while logged in",
+        request=PasswordChangeSerializer,
+        responses={
+            200: OpenApiResponse(description="Password changed successfully."),
+            400: OpenApiResponse(description="Validation error"),
+        },
+        tags=["auth"],
+    ),
+)
+class PasswordChangeView(APIView):
+    permission_classes = [IsAuthenticated]
+    http_method_names = ["post"]
+
+    def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        serializer = PasswordChangeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            change_password(
+                user=request.user,
+                current_password=serializer.validated_data["current_password"],
+                new_password=serializer.validated_data["new_password"],
+            )
+        except ValidationError as exc:
+            return Response(
+                {"detail": exc.detail},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {"detail": "Password changed successfully."},
+            status=status.HTTP_200_OK,
+        )
+

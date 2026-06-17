@@ -11,6 +11,7 @@ from common.permissions import (
     CanActivateDeactivateExam,
     CanManageExamConfiguration,
     IsAuthenticatedReadOnly,
+    WRITE_ROLES,
 )
 
 from exams.exceptions import (
@@ -87,6 +88,16 @@ _NOT_FOUND_ERRORS = (
 )
 
 
+def _can_view_inactive_exams(user) -> bool:
+    """B1: only exam-management roles (content_manager, platform_admin) may see
+    inactive exams. Everyone else (students, teachers, …) sees active only."""
+    from accounts.models import UserRole
+
+    return UserRole.objects.filter(
+        user=user, role__name__in=WRITE_ROLES
+    ).exists()
+
+
 class ExamBaseView(APIView):
     permission_classes = [IsAuthenticatedReadOnly]
 
@@ -121,7 +132,10 @@ class ExamBaseView(APIView):
 )
 class ExamList(ExamBaseView):
     def get(self, request):
-        exams = list_exams()
+        if _can_view_inactive_exams(request.user):
+            exams = list_exams()
+        else:
+            exams = list_active_exams()
         return Response(ExamReadSerializer(exams, many=True).data)
 
     def post(self, request):
@@ -149,6 +163,8 @@ class ExamList(ExamBaseView):
 class ExamDetail(ExamBaseView):
     def get(self, request, pk: UUID):
         exam = get_exam_by_id(exam_id=pk)
+        if not exam.is_active and not _can_view_inactive_exams(request.user):
+            raise ExamNotFoundError(str(pk))
         return Response(ExamReadSerializer(exam).data)
 
     def patch(self, request, pk: UUID):
@@ -170,6 +186,8 @@ class ExamDetail(ExamBaseView):
 class ExamTree(ExamBaseView):
     def get(self, request, pk: UUID):
         exam = get_exam_by_id(exam_id=pk)
+        if not exam.is_active and not _can_view_inactive_exams(request.user):
+            raise ExamNotFoundError(str(pk))
         subjects = get_complete_exam_hierarchy(exam_id=pk)
         data = ExamReadSerializer(exam).data
         data["subjects"] = SubjectHierarchySerializer(subjects, many=True).data

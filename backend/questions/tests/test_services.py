@@ -462,6 +462,114 @@ class TestReviewApprovalIntegration:
         )
 
 
+class TestPublishPolicy:
+    """PH-3: configurable, data-driven publish eligibility.
+
+    Default content publishes on a reviewer approval; higher-risk content
+    (AI-generated, minor-audience, or exam_rules.requires_sme_review) must reach
+    an SME approval first.
+    """
+
+    def _drive_to_approved(self, question, *, via_sme: bool):
+        from questions.services.question_services import (
+            update_question_review_status,
+        )
+
+        update_question_review_status(
+            question_id=question.id, review_status="in_review"
+        )
+        if via_sme:
+            update_question_review_status(
+                question_id=question.id, review_status="sme_review"
+            )
+            update_question_review_status(
+                question_id=question.id,
+                review_status="approved",
+                actor_role="sme",
+            )
+        else:
+            update_question_review_status(
+                question_id=question.id,
+                review_status="approved",
+                actor_role="content_reviewer",
+            )
+
+    def _publish(self, question):
+        from questions.services.question_services import (
+            update_question_review_status,
+        )
+
+        return update_question_review_status(
+            question_id=question.id, review_status="published"
+        )
+
+    def test_default_content_publishes_with_reviewer_approval(self, draft_question):
+        # draft_question: manual origin, non-minor exam → default policy.
+        self._drive_to_approved(draft_question, via_sme=False)
+        result = self._publish(draft_question)
+        assert result.review_status == "published"
+
+    def test_ai_content_blocked_with_reviewer_only_approval(self, exam_hierarchy):
+        from .factories import QuestionFactory
+
+        q = QuestionFactory(
+            ai=True,
+            exam=exam_hierarchy["exam"],
+            subtopic=exam_hierarchy["subtopic"],
+        )
+        self._drive_to_approved(q, via_sme=False)  # reviewer-level only
+
+        with pytest.raises(ApprovalRequiredForPublishError) as exc:
+            self._publish(q)
+        assert exc.value.required_levels == ["sme"]
+        q.refresh_from_db()
+        assert q.review_status == "approved"  # unchanged
+
+    def test_ai_content_publishes_via_sme_path(self, exam_hierarchy):
+        from .factories import QuestionFactory
+
+        q = QuestionFactory(
+            ai=True,
+            exam=exam_hierarchy["exam"],
+            subtopic=exam_hierarchy["subtopic"],
+        )
+        self._drive_to_approved(q, via_sme=True)  # sme-level approval
+        result = self._publish(q)
+        assert result.review_status == "published"
+
+    def test_minor_audience_requires_sme(self):
+        from .factories import ExamFactory, QuestionFactory, SubtopicFactory
+
+        exam = ExamFactory(audience_is_minor=True)
+        subtopic = SubtopicFactory(topic__subject__exam=exam)
+        q = QuestionFactory(origin="manual", exam=exam, subtopic=subtopic)
+        self._drive_to_approved(q, via_sme=False)
+
+        with pytest.raises(ApprovalRequiredForPublishError):
+            self._publish(q)
+
+    def test_exam_rule_requires_sme(self):
+        from .factories import ExamFactory, QuestionFactory, SubtopicFactory
+
+        exam = ExamFactory(exam_rules={"requires_sme_review": True})
+        subtopic = SubtopicFactory(topic__subject__exam=exam)
+        q = QuestionFactory(origin="manual", exam=exam, subtopic=subtopic)
+        self._drive_to_approved(q, via_sme=False)
+
+        with pytest.raises(ApprovalRequiredForPublishError):
+            self._publish(q)
+
+    def test_publish_policy_is_configurable(self, settings, draft_question):
+        # Tighten the default policy so even ordinary content needs SME.
+        settings.CONTENT_REVIEW_PUBLISH_POLICY = {
+            "default": ["sme"],
+            "strict": ["sme"],
+        }
+        self._drive_to_approved(draft_question, via_sme=False)  # reviewer only
+        with pytest.raises(ApprovalRequiredForPublishError):
+            self._publish(draft_question)
+
+
 class TestClaimQuestion:
     def test_claims_question(self, draft_question, seed_roles):
         from questions.services.question_services import (

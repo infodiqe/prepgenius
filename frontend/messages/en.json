@@ -269,5 +269,49 @@
     "aria_option_label": "Option {label}: {body}",
     "aria_loading_session": "Loading exam session",
     "aria_answer_options": "Answer options"
+  },
+  "settings": {
+    "title": "Account Settings",
+    "subtitle": "Manage your profile, target exam settings, password security, and data privacy.",
+    "tabs": {
+      "profile": "Profile Info",
+      "exam": "Exam Target",
+      "security": "Security",
+      "privacy": "Privacy & GDPR"
+    },
+    "profile": {
+      "title": "Personal Details",
+      "subtitle": "Update your name, contact details, and default language.",
+      "full_name": "Full Name",
+      "email": "Email Address",
+      "phone": "Phone Number",
+      "language": "Preferred Language"
+    },
+    "exam": {
+      "title": "Exam Target",
+      "subtitle": "Select the exam you are preparing for and your target exam date.",
+      "select_exam": "Target Exam",
+      "date": "Exam Date",
+      "days_remaining": "{days} days remaining",
+      "no_exam_selected": "No exam selected. Please choose your exam."
+    },
+    "security": {
+      "title": "Password Security",
+      "subtitle": "Change your login password. Modifying password will sign you out of all other devices.",
+      "current_password": "Current Password",
+      "new_password": "New Password",
+      "confirm_password": "Confirm New Password",
+      "submit": "Update Password"
+    },
+    "privacy": {
+      "title": "Data Privacy & GDPR",
+      "subtitle": "Export your account data or request permanent deletion of your profile under DPDP/GDPR regulations.",
+      "export_title": "Export Personal Data",
+      "export_desc": "Request a complete archive of your profile, attempts, and platform activity.",
+      "export_btn": "Export Data",
+      "delete_title": "Delete Account",
+      "delete_desc": "Permanently delete your account. This action will anonymize your data and is irreversible.",
+      "delete_btn": "Delete Account"
+    }
   }
 }

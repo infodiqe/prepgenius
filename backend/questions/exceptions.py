@@ -112,9 +112,37 @@ class QuestionNotClaimedError(QuestionDomainError):
         super().__init__(f"Question {question_id} is not claimed by anyone")
 
 
-class ApprovalRequiredForPublishError(QuestionDomainError):
-    def __init__(self, question_id: str) -> None:
-        self.question_id = question_id
+class ApprovalLevelAuthorityError(QuestionDomainError):
+    """Raised when the approval level requested by the caller does not match the
+    transition being performed — e.g. a reviewer-authority action trying to mint
+    an SME-level approval. Prevents the reviewer /approve/ endpoint from
+    bypassing the SME gate (P0-2)."""
+
+    def __init__(self, approval_level: str, from_status: str) -> None:
+        self.approval_level = approval_level
+        self.from_status = from_status
         super().__init__(
-            f"Question {question_id} requires at least one approval before publishing"
+            f"A '{approval_level}'-level approval cannot be created from status "
+            f"'{from_status}'. SME-level approval requires the SME-approve action "
+            f"from 'sme_review'."
         )
+
+
+class ApprovalRequiredForPublishError(QuestionDomainError):
+    def __init__(
+        self, question_id: str, required_levels: list[str] | None = None
+    ) -> None:
+        self.question_id = question_id
+        self.required_levels = required_levels
+        if required_levels:
+            levels = " or ".join(required_levels)
+            message = (
+                f"Question {question_id} cannot be published: a "
+                f"'{levels}' approval is required by the review policy."
+            )
+        else:
+            message = (
+                f"Question {question_id} requires at least one approval "
+                f"before publishing"
+            )
+        super().__init__(message)

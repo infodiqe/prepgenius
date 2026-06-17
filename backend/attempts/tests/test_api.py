@@ -420,3 +420,129 @@ class TestUserAnswerBulkSave:
         response = student_api_client.post(url, data, format="json")
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data) == 1
+
+
+class TestInProgressAnswerDoesNotLeakCorrectness:
+    """PH-7.1 regression: student-facing in-progress answer APIs must never
+    expose ``is_correct``, which would let the mock player infer the right
+    answer mid-attempt. Correctness is only revealed after scoring."""
+
+    def test_save_answer_response_omits_is_correct(
+        self, student_api_client, attempt, published_question
+    ):
+        url = reverse(
+            "attempts:answer-save",
+            kwargs={"attempt_pk": attempt.id},
+        )
+        data = {
+            "question_id": str(published_question.id),
+            "state": "answered",
+            "time_spent_seconds": 10,
+        }
+        response = student_api_client.post(url, data, format="json")
+        assert response.status_code == status.HTTP_200_OK
+        assert "is_correct" not in response.data
+
+    def test_bulk_save_response_omits_is_correct(
+        self, student_api_client, attempt, published_question
+    ):
+        url = reverse(
+            "attempts:answer-bulk-save",
+            kwargs={"attempt_pk": attempt.id},
+        )
+        data = {
+            "answers": [
+                {
+                    "question_id": str(published_question.id),
+                    "state": "answered",
+                }
+            ]
+        }
+        response = student_api_client.post(url, data, format="json")
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data) == 1
+        assert all("is_correct" not in item for item in response.data)
+
+    def test_list_answers_response_omits_is_correct(
+        self, student_api_client, attempt, published_question
+    ):
+        from attempts.models import UserAnswer
+
+        UserAnswer.objects.create(
+            attempt=attempt,
+            question=published_question,
+            state="answered",
+        )
+        url = reverse(
+            "attempts:answer-list",
+            kwargs={"attempt_pk": attempt.id},
+        )
+        response = student_api_client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data) >= 1
+        assert all("is_correct" not in item for item in response.data)
+
+
+class TestScoredResultsStillExposeCorrectness:
+    """PH-7.1 guard rail: removing is_correct from in-progress responses must
+    NOT regress the scored-results payload, which legitimately exposes it."""
+
+    def test_scored_attempt_answers_include_is_correct(
+        self, student_api_client, attempt, question_with_options
+    ):
+        from attempts.models import UserAnswer
+
+        question, options = question_with_options
+        UserAnswer.objects.create(
+            attempt=attempt,
+            question=question,
+            selected_option=options[0],
+            state="answered",
+        )
+
+        submit_url = reverse(
+            "attempts:attempt-submit",
+            kwargs={"pk": attempt.id},
+        )
+        submit_response = student_api_client.post(submit_url)
+        assert submit_response.status_code == status.HTTP_200_OK
+        assert submit_response.data["status"] == "scored"
+
+        # The scored-attempt detail endpoint returns ScoredAttemptDetailSerializer,
+        # whose nested answers legitimately expose is_correct post-scoring.
+        detail_url = reverse(
+            "attempts:attempt-detail",
+            kwargs={"pk": attempt.id},
+        )
+        response = student_api_client.get(detail_url)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["status"] == "scored"
+        assert len(response.data["answers"]) >= 1
+        assert all("is_correct" in item for item in response.data["answers"])
+
+    def test_in_progress_attempt_detail_hides_is_correct(
+        self, student_api_client, attempt, question_with_options
+    ):
+        """P0-1 regression: GET /attempts/{id}/ on an in-progress attempt must
+        NOT expose answers[].is_correct (the attempt-detail leak missed by
+        PH-7.1)."""
+        from attempts.models import UserAnswer
+
+        question, options = question_with_options
+        UserAnswer.objects.create(
+            attempt=attempt,
+            question=question,
+            selected_option=options[0],
+            state="answered",
+            is_correct=True,
+        )
+
+        detail_url = reverse(
+            "attempts:attempt-detail",
+            kwargs={"pk": attempt.id},
+        )
+        response = student_api_client.get(detail_url)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["status"] == "in_progress"
+        assert len(response.data["answers"]) >= 1
+        assert all("is_correct" not in item for item in response.data["answers"])

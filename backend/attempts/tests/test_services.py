@@ -262,22 +262,198 @@ class TestScoreAttempt:
 
 
 class TestAutoSubmitExpiredAttempts:
-    def test_submits_expired_in_progress_attempt(self, exam, user):
+    def _expired_attempt(self, exam, user, *, duration=60, age=61):
         attempt = create_attempt(
             user_id=user.id,
             exam_id=exam.id,
             attempt_type="topic",
-            duration_seconds=60,
+            duration_seconds=duration,
         )
         start_attempt(attempt_id=attempt.id)
-        attempt.started_at = timezone.now() - timedelta(seconds=61)
+        attempt.started_at = timezone.now() - timedelta(seconds=age)
         attempt.save(update_fields=["started_at"])
+        return attempt
+
+    def test_submits_expired_in_progress_attempt(self, exam, user):
+        attempt = self._expired_attempt(exam, user)
 
         processed = submit_expired_attempts()
 
         attempt.refresh_from_db()
         assert processed == 1
         # submit_attempt now auto-scores, so the final status is "scored".
+        assert attempt.status == "scored"
+
+    def test_skips_attempt_within_duration(self, exam, user):
+        """An attempt whose timer has not elapsed is left untouched."""
+        attempt = create_attempt(
+            user_id=user.id,
+            exam_id=exam.id,
+            attempt_type="topic",
+            duration_seconds=3600,
+        )
+        start_attempt(attempt_id=attempt.id)  # started just now
+
+        processed = submit_expired_attempts()
+
+        attempt.refresh_from_db()
+        assert processed == 0
+        assert attempt.status == "in_progress"
+
+    def test_skips_attempt_without_timer(self, exam, user):
+        """Attempts with no started_at/duration are not auto-submittable."""
+        attempt = create_attempt(
+            user_id=user.id,
+            exam_id=exam.id,
+            attempt_type="topic",
+        )
+        # status="created", no started_at — must never be swept.
+        processed = submit_expired_attempts()
+
+        attempt.refresh_from_db()
+        assert processed == 0
+        assert attempt.status == "created"
+
+    def test_skips_already_submitted_attempt(self, exam, user):
+        """A concurrent manual submit wins; the sweep must not re-process it."""
+        attempt = self._expired_attempt(exam, user)
+        # Simulate the student submitting first (auto-scores → "scored").
+        submit_attempt(attempt_id=attempt.id)
+
+        processed = submit_expired_attempts()
+
+        attempt.refresh_from_db()
+        assert processed == 0
+        assert attempt.status == "scored"
+
+    def test_is_idempotent_across_repeated_sweeps(self, exam, user):
+        """Re-running the sweep finalizes each attempt exactly once."""
+        attempt = self._expired_attempt(exam, user)
+
+        first = submit_expired_attempts()
+        second = submit_expired_attempts()
+
+        attempt.refresh_from_db()
+        assert first == 1
+        assert second == 0
+        assert attempt.status == "scored"
+
+    def test_returns_zero_when_nothing_expired(self, exam, user):
+        assert submit_expired_attempts() == 0
+
+    def test_submits_only_expired_among_many(self, exam, user):
+        expired = self._expired_attempt(exam, user)
+        fresh = create_attempt(
+            user_id=user.id,
+            exam_id=exam.id,
+            attempt_type="topic",
+            duration_seconds=3600,
+        )
+        start_attempt(attempt_id=fresh.id)
+
+        processed = submit_expired_attempts()
+
+        expired.refresh_from_db()
+        fresh.refresh_from_db()
+        assert processed == 1
+        assert expired.status == "scored"
+        assert fresh.status == "in_progress"
+
+
+class TestConcurrencyHardening:
+    """B2: submit_attempt / score_attempt re-validate under a row lock, so a
+    finalized attempt cannot be regressed or scored twice."""
+
+    def _scored_attempt(self, exam, user):
+        attempt = create_attempt(
+            user_id=user.id,
+            exam_id=exam.id,
+            attempt_type="topic",
+            duration_seconds=3600,
+        )
+        start_attempt(attempt_id=attempt.id)
+        submit_attempt(attempt_id=attempt.id)  # auto-scores → "scored"
+        attempt.refresh_from_db()
+        assert attempt.status == "scored"
+        return attempt
+
+    def test_resubmit_scored_attempt_is_rejected_without_regression(
+        self, exam, user
+    ):
+        attempt = self._scored_attempt(exam, user)
+
+        with pytest.raises(InvalidAttemptTransitionError):
+            submit_attempt(attempt_id=attempt.id)
+
+        attempt.refresh_from_db()
+        # The scored → submitted regression must not happen.
+        assert attempt.status == "scored"
+
+    def test_rescore_scored_attempt_is_rejected_without_duplicate_analytics(
+        self, exam, user
+    ):
+        from analytics.models import AttemptSectionAnalytics
+
+        attempt = self._scored_attempt(exam, user)
+        before = AttemptSectionAnalytics.objects.filter(attempt=attempt).count()
+
+        with pytest.raises(InvalidAttemptTransitionError):
+            score_attempt(attempt_id=attempt.id)
+
+        attempt.refresh_from_db()
+        assert attempt.status == "scored"
+        after = AttemptSectionAnalytics.objects.filter(attempt=attempt).count()
+        assert after == before  # no extra analytics from a rejected re-score
+
+    @pytest.mark.django_db(transaction=True)
+    def test_concurrent_submits_finalize_exactly_once(self):
+        """Postgres-only: two threads submitting the same in-progress attempt
+        must result in exactly one finalize (one success, one clean rejection),
+        with no scored → submitted regression. Skipped on SQLite, which does not
+        enforce row locking."""
+        import threading
+
+        from django.db import connection, connections
+
+        if connection.vendor != "postgresql":
+            pytest.skip("row-locking is only enforced on PostgreSQL")
+
+        from accounts.tests.factories import UserFactory
+
+        from .factories import ExamFactory
+
+        user = UserFactory(is_email_verified=True, status="active")
+        exam = ExamFactory()
+        attempt = create_attempt(
+            user_id=user.id,
+            exam_id=exam.id,
+            attempt_type="topic",
+            duration_seconds=3600,
+        )
+        start_attempt(attempt_id=attempt.id)
+        attempt_id = attempt.id
+
+        results: dict[str, str] = {}
+
+        def worker(name: str) -> None:
+            try:
+                submit_attempt(attempt_id=attempt_id)
+                results[name] = "ok"
+            except InvalidAttemptTransitionError:
+                results[name] = "rejected"
+            finally:
+                connections.close_all()
+
+        threads = [
+            threading.Thread(target=worker, args=(n,)) for n in ("a", "b")
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert sorted(results.values()) == ["ok", "rejected"]
+        attempt.refresh_from_db()
         assert attempt.status == "scored"
 
 

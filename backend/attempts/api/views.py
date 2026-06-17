@@ -61,7 +61,7 @@ from .serializers import (
     MockTestUpdateSerializer,
     ScoredAttemptDetailSerializer,
     UserAnswerBulkSaveSerializer,
-    UserAnswerReadSerializer,
+    UserAnswerPlayerSerializer,
     UserAnswerSaveSerializer,
 )
 
@@ -458,9 +458,11 @@ class AttemptScore(AttemptBaseView):
 @extend_schema_view(
     get=extend_schema(
         summary="List answers for attempt",
-        description="Retrieve all answers belonging to an attempt.",
+        description="Retrieve all answers belonging to an attempt. Correctness "
+                    "(is_correct) is intentionally excluded while the attempt is "
+                    "in progress; it is only available after scoring.",
         responses={
-            200: UserAnswerReadSerializer(many=True),
+            200: UserAnswerPlayerSerializer(many=True),
             401: OpenApiResponse(description="Not authenticated"),
             403: OpenApiResponse(description="Permission denied"),
             404: OpenApiResponse(description="Attempt not found"),
@@ -475,7 +477,7 @@ class UserAnswerList(AttemptBaseView):
             attempt_id=attempt_pk, user_id=request.user.id
         )
         answers = list_answers_for_attempt(attempt_id=attempt_pk)
-        return Response(UserAnswerReadSerializer(answers, many=True).data)
+        return Response(UserAnswerPlayerSerializer(answers, many=True).data)
 
 
 @extend_schema_view(
@@ -485,7 +487,7 @@ class UserAnswerList(AttemptBaseView):
                     "(same attempt+question updates existing).",
         request=UserAnswerSaveSerializer,
         responses={
-            200: UserAnswerReadSerializer,
+            200: UserAnswerPlayerSerializer,
             400: OpenApiResponse(description="Validation error or attempt not in progress"),
             401: OpenApiResponse(description="Not authenticated"),
             403: OpenApiResponse(description="Permission denied"),
@@ -505,7 +507,7 @@ class UserAnswerSave(AttemptBaseView):
         answer = save_answer(
             attempt_id=attempt_pk, **serializer.validated_data
         )
-        return Response(UserAnswerReadSerializer(answer).data)
+        return Response(UserAnswerPlayerSerializer(answer).data)
 
 
 @extend_schema_view(
@@ -514,7 +516,7 @@ class UserAnswerSave(AttemptBaseView):
         description="Save multiple answers at once for an active attempt.",
         request=UserAnswerBulkSaveSerializer,
         responses={
-            200: UserAnswerReadSerializer(many=True),
+            200: UserAnswerPlayerSerializer(many=True),
             400: OpenApiResponse(description="Validation error"),
             401: OpenApiResponse(description="Not authenticated"),
             403: OpenApiResponse(description="Permission denied"),
@@ -539,5 +541,5 @@ class UserAnswerBulkSave(AttemptBaseView):
             answers=serializer.validated_data["answers"],
         )
         return Response(
-            UserAnswerReadSerializer(results, many=True).data
+            UserAnswerPlayerSerializer(results, many=True).data
         )

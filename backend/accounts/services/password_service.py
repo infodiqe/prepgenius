@@ -67,3 +67,32 @@ def confirm_password_reset(*, token: str, new_password: str) -> User:
         )
 
     return user
+
+
+def change_password(*, user: User, current_password: str, new_password: str) -> User:
+    """
+    Change user password after verifying current password,
+    enforcing Django password validators, and revoking existing sessions.
+    """
+    if not user.check_password(current_password):
+        raise ValidationError("Incorrect current password")
+
+    try:
+        django_validate_password(new_password, user=user)
+    except Exception as exc:
+        raise ValidationError(exc.messages if hasattr(exc, "messages") else str(exc)) from exc
+
+    with transaction.atomic():
+        user.set_password(new_password)
+        user.save()
+
+        # Revoke other sessions/tokens for this user
+        non_blacklisted = OutstandingToken.objects.filter(user=user).exclude(
+            id__in=BlacklistedToken.objects.values("token_id")
+        )
+        BlacklistedToken.objects.bulk_create(
+            [BlacklistedToken(token=ot) for ot in non_blacklisted]
+        )
+
+    return user
+

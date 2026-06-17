@@ -1,6 +1,7 @@
 from decimal import Decimal
 from uuid import UUID
 
+from django.conf import settings
 from django.db import transaction
 
 from content_review.services.review_services import (
@@ -22,6 +23,7 @@ from exams.selectors.exam_selectors import (
 from questions.exceptions import (
     AiGeneratedQuestionInvalidStateError,
     AiGeneratedQuestionNotFoundError,
+    ApprovalLevelAuthorityError,
     ApprovalRequiredForPublishError,
     InvalidReviewTransitionError,
     QuestionAlreadyClaimedError,
@@ -66,6 +68,47 @@ def _validate_review_transition(from_status: str, to_status: str) -> None:
     allowed = _VALID_REVIEW_TRANSITIONS.get(from_status, [])
     if to_status not in allowed:
         raise InvalidReviewTransitionError(from_status, to_status)
+
+
+# Public alias so the admin (and any other caller) can enforce the same
+# transition graph without reaching into a private helper.
+def assert_valid_review_transition(from_status: str, to_status: str) -> None:
+    _validate_review_transition(from_status, to_status)
+
+
+def _requires_strict_review(question: Question) -> bool:
+    """Higher-risk content needs an SME sign-off before publishing.
+
+    Resolved from data, never hardcoded per exam: AI-generated origin,
+    minor-audience exams, or an explicit ``requires_sme_review`` exam rule.
+    """
+    if question.origin == "ai":
+        return True
+    exam = question.exam
+    if getattr(exam, "audience_is_minor", False):
+        return True
+    return bool((exam.exam_rules or {}).get("requires_sme_review"))
+
+
+def _accepted_publish_levels(question: Question) -> list[str]:
+    """Approval levels that satisfy publishing this question (config-driven)."""
+    policy = settings.CONTENT_REVIEW_PUBLISH_POLICY
+    key = "strict" if _requires_strict_review(question) else "default"
+    return policy.get(key, policy.get("default", ["reviewer", "sme"]))
+
+
+def assert_publish_allowed(question: Question) -> None:
+    """Enforce the configured review policy before a question may be published.
+
+    Raises ApprovalRequiredForPublishError if no ContentApproval exists at an
+    approval level accepted by the policy for this question.
+    """
+    accepted = _accepted_publish_levels(question)
+    has_accepted_approval = ContentApproval.objects.filter(
+        question_id=question.id, approval_level__in=accepted
+    ).exists()
+    if not has_accepted_approval:
+        raise ApprovalRequiredForPublishError(str(question.id), accepted)
 
 
 def _ensure_one_correct_option(question_id: UUID) -> None:
@@ -172,6 +215,27 @@ def update_question(
     return question
 
 
+# Which ContentApproval level a transition into "approved" corresponds to.
+# reviewer ⇐ in_review (the /approve/ action) · sme ⇐ sme_review (the
+# /sme-approve/ action). PH-3/P0-2: the level is bound to the transition, and an
+# authority-gated caller passes its own level which must match — so the
+# reviewer endpoint can never mint an SME-level approval.
+_APPROVAL_LEVEL_FOR_FROM_STATUS = {"in_review": "reviewer", "sme_review": "sme"}
+
+
+def _resolve_approval_level(
+    *, requested_level: str | None, from_status: str
+) -> str:
+    expected = _APPROVAL_LEVEL_FOR_FROM_STATUS.get(from_status)
+    if requested_level is None:
+        # Trusted/full-authority caller (e.g. Django Admin): derive from the
+        # transition that was already validated by the state machine.
+        return expected
+    if requested_level != expected:
+        raise ApprovalLevelAuthorityError(requested_level, from_status)
+    return requested_level
+
+
 def update_question_review_status(
     *,
     question_id: UUID,
@@ -179,6 +243,7 @@ def update_question_review_status(
     actor_id: UUID | None = None,
     actor_role: str | None = None,
     comment: str | None = None,
+    approval_level: str | None = None,
 ) -> Question:
     try:
         question = get_question_by_id(question_id=question_id)
@@ -188,8 +253,16 @@ def update_question_review_status(
     _validate_review_transition(question.review_status, review_status)
 
     if review_status == "published":
-        if not ContentApproval.objects.filter(question_id=question_id).exists():
-            raise ApprovalRequiredForPublishError(str(question_id))
+        assert_publish_allowed(question)
+
+    # Resolve (and authority-check) the approval level before any mutation so an
+    # inconsistent request — e.g. a reviewer-authority /approve/ on a sme_review
+    # question — is rejected without side effects.
+    resolved_level: str | None = None
+    if review_status == "approved":
+        resolved_level = _resolve_approval_level(
+            requested_level=approval_level, from_status=question.review_status
+        )
 
     with transaction.atomic():
         old_status = question.review_status
@@ -211,7 +284,7 @@ def update_question_review_status(
             create_approval(
                 question_id=question.id,
                 approver_id=actor_id,
-                approval_level="reviewer" if old_status == "in_review" else "sme",
+                approval_level=resolved_level,
                 note=comment,
             )
 

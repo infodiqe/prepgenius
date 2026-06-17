@@ -55,10 +55,12 @@ from questions.serializers import (
     QuestionCreateSerializer,
     QuestionOptionCreateSerializer,
     QuestionOptionReadSerializer,
+    QuestionOptionStudentReadSerializer,
     QuestionOptionUpdateSerializer,
     QuestionReadSerializer,
     QuestionStatReadSerializer,
     QuestionUpdateSerializer,
+    StudentQuestionSerializer,
 )
 from questions.services.question_services import (
     claim_question_for_review,
@@ -85,6 +87,43 @@ _NOT_FOUND_ERRORS = (
     AiGeneratedQuestionNotFoundError,
 )
 
+# PH-7.2: roles allowed to see answer keys (option.is_correct + explanation) in
+# raw question/option payloads. The content GET endpoints below are reachable by
+# any READ-role user (incl. students) via IsAuthenticatedReadOnly, so they pick
+# the serializer by audience: content-authoring roles get the full payload;
+# everyone else (students, teachers, institution admins) gets the student-safe
+# one. Learner endpoints always use the student-safe serializer.
+_ANSWER_KEY_VIEW_ROLES = {
+    "content_manager",
+    "content_reviewer",
+    "sme",
+    "platform_admin",
+}
+
+
+def _can_view_answer_keys(user) -> bool:
+    from accounts.models import UserRole
+
+    return UserRole.objects.filter(
+        user=user, role__name__in=_ANSWER_KEY_VIEW_ROLES
+    ).exists()
+
+
+def _question_read_serializer(request):
+    return (
+        QuestionReadSerializer
+        if _can_view_answer_keys(request.user)
+        else StudentQuestionSerializer
+    )
+
+
+def _option_read_serializer(request):
+    return (
+        QuestionOptionReadSerializer
+        if _can_view_answer_keys(request.user)
+        else QuestionOptionStudentReadSerializer
+    )
+
 
 class QuestionBaseView(APIView):
     permission_classes = [IsAuthenticatedReadOnly]
@@ -108,7 +147,9 @@ class QuestionBaseView(APIView):
 @extend_schema_view(
     get=extend_schema(
         summary="List questions",
-        description="List questions with optional exam_id and review_status filters.",
+        description="List questions with optional exam_id and review_status filters. "
+                    "Answer keys (option.is_correct, explanation) are included only for "
+                    "content-authoring roles; other users receive the student-safe payload.",
         parameters=[
             OpenApiParameter(name="exam_id", type={"type": "string", "format": "uuid"}, required=False, location=OpenApiParameter.QUERY, description="Filter by exam UUID"),
             OpenApiParameter(name="review_status", type=str, required=False, location=OpenApiParameter.QUERY, description="Filter by review status (draft, in_review, approved, published, rejected)"),
@@ -140,7 +181,8 @@ class QuestionList(QuestionBaseView):
         questions = list_questions(
             exam_id=exam_uuid, review_status=review_status
         )
-        return Response(QuestionReadSerializer(questions, many=True).data)
+        serializer_cls = _question_read_serializer(request)
+        return Response(serializer_cls(questions, many=True).data)
 
     def post(self, request):
         serializer = QuestionCreateSerializer(data=request.data)
@@ -155,7 +197,9 @@ class QuestionList(QuestionBaseView):
 @extend_schema_view(
     get=extend_schema(
         summary="Retrieve question",
-        description="Get a single question by ID.",
+        description="Get a single question by ID. Answer keys (option.is_correct, "
+                    "explanation) are included only for content-authoring roles; other "
+                    "users receive the student-safe payload.",
         responses={
             200: QuestionReadSerializer,
             401: OpenApiResponse(description="Not authenticated"),
@@ -190,7 +234,8 @@ class QuestionDetail(QuestionBaseView):
     serializer_class = QuestionReadSerializer
     def get(self, request, pk: UUID):
         question = get_question_by_id(question_id=pk)
-        return Response(QuestionReadSerializer(question).data)
+        serializer_cls = _question_read_serializer(request)
+        return Response(serializer_cls(question).data)
 
     def patch(self, request, pk: UUID):
         serializer = QuestionUpdateSerializer(data=request.data, partial=True)
@@ -211,7 +256,9 @@ class QuestionDetail(QuestionBaseView):
 @extend_schema_view(
     get=extend_schema(
         summary="List options for question",
-        description="Retrieve all options belonging to a question.",
+        description="Retrieve all options belonging to a question. The correct-option "
+                    "marker (is_correct) is included only for content-authoring roles; "
+                    "other users receive the student-safe payload.",
         responses={
             200: QuestionOptionReadSerializer(many=True),
             401: OpenApiResponse(description="Not authenticated"),
@@ -223,7 +270,8 @@ class QuestionDetail(QuestionBaseView):
 class QuestionOptionList(QuestionBaseView):
     def get(self, request, question_pk: UUID):
         options = list_question_options_for_question(question_id=question_pk)
-        return Response(QuestionOptionReadSerializer(options, many=True).data)
+        serializer_cls = _option_read_serializer(request)
+        return Response(serializer_cls(options, many=True).data)
 
 
 @extend_schema_view(
@@ -255,7 +303,9 @@ class QuestionOptionCreate(QuestionBaseView):
 @extend_schema_view(
     get=extend_schema(
         summary="Retrieve question option",
-        description="Get a single option by ID.",
+        description="Get a single option by ID. The correct-option marker (is_correct) "
+                    "is included only for content-authoring roles; other users receive "
+                    "the student-safe payload.",
         responses={
             200: QuestionOptionReadSerializer,
             401: OpenApiResponse(description="Not authenticated"),
@@ -290,7 +340,8 @@ class QuestionOptionDetail(QuestionBaseView):
     serializer_class = QuestionOptionReadSerializer
     def get(self, request, pk: UUID):
         option = get_question_option_by_id(option_id=pk)
-        return Response(QuestionOptionReadSerializer(option).data)
+        serializer_cls = _option_read_serializer(request)
+        return Response(serializer_cls(option).data)
 
     def patch(self, request, pk: UUID):
         serializer = QuestionOptionUpdateSerializer(
@@ -553,12 +604,14 @@ class AiGeneratedPromote(QuestionBaseView):
 @extend_schema_view(
     get=extend_schema(
         summary="List published questions",
-        description="List published questions for practice. Optionally filter by exam_id.",
+        description="List published questions for practice. Optionally filter by exam_id. "
+                    "Answer keys (option.is_correct) and the explanation are excluded "
+                    "so the payload cannot reveal the answer.",
         parameters=[
             OpenApiParameter(name="exam_id", type={"type": "string", "format": "uuid"}, required=False, location=OpenApiParameter.QUERY, description="Filter by exam UUID"),
         ],
         responses={
-            200: QuestionReadSerializer(many=True),
+            200: StudentQuestionSerializer(many=True),
             400: OpenApiResponse(description="Invalid query parameter"),
             401: OpenApiResponse(description="Not authenticated"),
             403: OpenApiResponse(description="Permission denied"),
@@ -572,15 +625,17 @@ class PublishedQuestionList(QuestionBaseView):
         exam_id = request.query_params.get("exam_id")
         exam_uuid: UUID | None = UUID(exam_id) if exam_id else None
         questions = list_published_questions(exam_id=exam_uuid)
-        return Response(QuestionReadSerializer(questions, many=True).data)
+        return Response(StudentQuestionSerializer(questions, many=True).data)
 
 
 @extend_schema_view(
     get=extend_schema(
         summary="Retrieve published question",
-        description="Get a single published question by ID.",
+        description="Get a single published question by ID. Answer keys "
+                    "(option.is_correct) and the explanation are excluded so the "
+                    "payload cannot reveal the answer.",
         responses={
-            200: QuestionReadSerializer,
+            200: StudentQuestionSerializer,
             401: OpenApiResponse(description="Not authenticated"),
             403: OpenApiResponse(description="Permission denied"),
             404: OpenApiResponse(description="Published question not found"),
@@ -592,15 +647,17 @@ class PublishedQuestionDetail(QuestionBaseView):
 
     def get(self, request, pk: UUID):
         question = get_published_question_by_id(question_id=pk)
-        return Response(QuestionReadSerializer(question).data)
+        return Response(StudentQuestionSerializer(question).data)
 
 
 @extend_schema_view(
     get=extend_schema(
         summary="List published questions by subtopic",
-        description="List published questions for a specific subtopic.",
+        description="List published questions for a specific subtopic. Answer keys "
+                    "(option.is_correct) and the explanation are excluded so the "
+                    "payload cannot reveal the answer.",
         responses={
-            200: QuestionReadSerializer(many=True),
+            200: StudentQuestionSerializer(many=True),
             401: OpenApiResponse(description="Not authenticated"),
             403: OpenApiResponse(description="Permission denied"),
             404: OpenApiResponse(description="Subtopic not found"),
@@ -614,4 +671,4 @@ class PublishedQuestionBySubtopic(QuestionBaseView):
         questions = list_published_questions_for_subtopic(
             subtopic_id=subtopic_id
         )
-        return Response(QuestionReadSerializer(questions, many=True).data)
+        return Response(StudentQuestionSerializer(questions, many=True).data)

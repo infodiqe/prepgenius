@@ -4,8 +4,11 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button, Input, Label, Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui";
-import { login } from "@/features/auth/authService";
+import { login, getProfile } from "@/features/auth/authService";
 import { Eye, EyeOff, Globe } from "lucide-react";
+
+// Roles that should land on the Django Admin instead of the student dashboard.
+const ADMIN_ROLES = ["platform_admin", "content_manager"];
 
 export default function LoginPage() {
   const t = useTranslations("auth");
@@ -33,9 +36,28 @@ export default function LoginPage() {
     try {
       await login({ email, password });
       setSuccess(t("success_login"));
+
+      // Decide destination from the user's roles (server-authoritative).
+      // Admins go to Django Admin; everyone else to the student dashboard.
+      let destination = "/dashboard";
+      try {
+        const profile = await getProfile();
+        const roles = profile.roles ?? [];
+        if (roles.some((role) => ADMIN_ROLES.includes(role))) {
+          destination = "/admin/";
+        }
+      } catch {
+        // If the profile lookup fails, fall back to the dashboard.
+      }
+
       setTimeout(() => {
-        router.push("/dashboard");
-        router.refresh();
+        if (destination.startsWith("/admin")) {
+          // Django Admin is server-rendered (outside Next.js routing).
+          window.location.href = destination;
+        } else {
+          router.push(destination);
+          router.refresh();
+        }
       }, 1000);
     } catch (err: any) {
       setError(err.message || t("error_generic"));

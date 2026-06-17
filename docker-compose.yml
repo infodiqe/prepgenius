@@ -45,6 +45,11 @@ services:
     volumes:
       - uploads:/app/uploads
       - static:/app/staticfiles
+      # Source-controlled seed package (data/seeds/*) lives at the repo root,
+      # outside the ./backend build context, so it isn't baked into the image.
+      # Mount it read-only so management commands (e.g. seed_questions) can
+      # import `data.seeds.*`. data/uploads & data/generated are runtime-only.
+      - ./data:/app/data:ro
     depends_on:
       db:
         condition: service_healthy

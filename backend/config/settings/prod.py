@@ -7,13 +7,17 @@ DEBUG = False
 ALLOWED_HOSTS = env("ALLOWED_HOSTS")
 
 # ── Security hardening ────────────────────────────────────────────────────────
+# Secure-by-default: every flag defaults to its hardened value, so production is
+# unchanged. They are env-overridable only so a prod-image stack running behind
+# HTTP-only nginx (local docker dev) can opt out of HTTPS enforcement and avoid
+# the HTTP→HTTPS 301 that an HTTP-only proxy turns into a 502.
 
-SECURE_SSL_REDIRECT = True
-SECURE_HSTS_SECONDS = 31536000
-SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-SECURE_HSTS_PRELOAD = True
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
+SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=True)
+SECURE_HSTS_SECONDS = env.int("SECURE_HSTS_SECONDS", default=31536000)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", default=True)
+SECURE_HSTS_PRELOAD = env.bool("SECURE_HSTS_PRELOAD", default=True)
+SESSION_COOKIE_SECURE = env.bool("SESSION_COOKIE_SECURE", default=True)
+CSRF_COOKIE_SECURE = env.bool("CSRF_COOKIE_SECURE", default=True)
 
 # ── Static files ──────────────────────────────────────────────────────────────
 

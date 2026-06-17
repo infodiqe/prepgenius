@@ -1,4 +1,16 @@
-﻿from django.contrib import admin
+﻿from django import forms
+from django.contrib import admin, messages
+
+from questions.exceptions import (
+    ApprovalRequiredForPublishError,
+    InvalidReviewTransitionError,
+    QuestionDomainError,
+)
+from questions.services.question_services import (
+    assert_publish_allowed,
+    assert_valid_review_transition,
+    update_question_review_status,
+)
 
 from .models import (
     AiGeneratedQuestion,
@@ -7,6 +19,53 @@ from .models import (
     QuestionOption,
     QuestionStat,
 )
+
+
+def _actor_role_for(user) -> str | None:
+    """Best-effort role label for the content_reviews audit trail."""
+    if getattr(user, "is_superuser", False):
+        return "platform_admin"
+    from accounts.models import UserRole
+
+    return (
+        UserRole.objects.filter(user=user)
+        .values_list("role__name", flat=True)
+        .first()
+    )
+
+
+class QuestionAdminForm(forms.ModelForm):
+    """PH-3: enforce the review state machine + publish policy in the admin.
+
+    Blocks direct status edits that bypass approval — an illegal transition
+    (e.g. draft → published) or a publish that fails the configured review
+    policy is rejected with a form error rather than written to the DB.
+    """
+
+    class Meta:
+        model = Question
+        # `embedding` (pgvector) is a readonly admin field, never form-editable.
+        exclude = ("embedding",)
+
+    def clean(self) -> dict:
+        cleaned = super().clean()
+        new_status = cleaned.get("review_status")
+        old_status = (
+            self.instance.review_status
+            if self.instance and self.instance.pk
+            else "draft"
+        )
+        if new_status and new_status != old_status:
+            try:
+                assert_valid_review_transition(old_status, new_status)
+            except InvalidReviewTransitionError as exc:
+                raise forms.ValidationError({"review_status": str(exc)})
+            if new_status == "published":
+                try:
+                    assert_publish_allowed(self.instance)
+                except ApprovalRequiredForPublishError as exc:
+                    raise forms.ValidationError({"review_status": str(exc)})
+        return cleaned
 
 
 class QuestionOptionInline(admin.TabularInline):
@@ -23,6 +82,7 @@ class QuestionAppearanceInline(admin.TabularInline):
 
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
+    form = QuestionAdminForm
     list_display = [
         "id_short",
         "exam",
@@ -72,6 +132,36 @@ class QuestionAdmin(admin.ModelAdmin):
         ("Timestamps", {"fields": ["id", "created_at", "updated_at"]}),
     ]
     inlines = [QuestionOptionInline, QuestionAppearanceInline]
+
+    def save_model(self, request, obj, form, change) -> None:
+        """Route review_status changes through the guarded service so the
+        transition graph, publish policy, and content_reviews audit trail are
+        applied — a raw field write would bypass all three. Other field edits
+        are persisted normally."""
+        status_changed = change and "review_status" in form.changed_data
+        if not status_changed:
+            super().save_model(request, obj, form, change)
+            return
+
+        new_status = obj.review_status
+        # Persist any other edits without touching the status field directly.
+        obj.review_status = form.initial.get("review_status", new_status)
+        super().save_model(request, obj, form, change)
+
+        try:
+            update_question_review_status(
+                question_id=obj.pk,
+                review_status=new_status,
+                actor_id=request.user.id,
+                actor_role=_actor_role_for(request.user),
+                comment="Status changed via Django Admin",
+            )
+        except QuestionDomainError as exc:
+            # The form's clean() already validated this, so this is a defensive
+            # backstop (e.g. an approval removed between clean and save).
+            self.message_user(request, str(exc), level=messages.ERROR)
+            return
+        obj.refresh_from_db()
 
     @admin.display(description="ID")
     def id_short(self, obj: Question) -> str:

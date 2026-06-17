@@ -207,6 +207,11 @@ class QuestionApprovalList(ContentReviewBaseView):
 
 class _BaseWorkflowView(ContentReviewBaseView):
     review_status: str
+    # P0-2: the approval level this endpoint is authorised to mint. The reviewer
+    # /approve/ endpoint sets "reviewer"; the SME /sme-approve/ endpoint sets
+    # "sme". The service rejects a level that doesn't match the transition, so a
+    # reviewer-authority action can never produce an SME-level approval.
+    approval_level: str | None = None
 
     def post(self, request, question_pk: UUID):
         serializer = ReviewActionSerializer(data=request.data)
@@ -218,6 +223,7 @@ class _BaseWorkflowView(ContentReviewBaseView):
                 actor_id=request.user.id,
                 actor_role=_get_actor_role(request.user),
                 comment=serializer.validated_data.get("comment", ""),
+                approval_level=self.approval_level,
             )
         except InvalidReviewTransitionError as exc:
             return Response(
@@ -268,6 +274,7 @@ class SubmitQuestion(_BaseWorkflowView):
 )
 class ApproveQuestion(_BaseWorkflowView):
     review_status = "approved"
+    approval_level = "reviewer"
     permission_classes = [CanApproveReviewerLevel]
 
 
@@ -289,6 +296,7 @@ class ApproveQuestion(_BaseWorkflowView):
 )
 class SmeApproveQuestion(_BaseWorkflowView):
     review_status = "approved"
+    approval_level = "sme"
     permission_classes = [CanApproveSmeLevel]
 
 

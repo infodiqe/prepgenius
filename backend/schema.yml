@@ -349,7 +349,9 @@ paths:
   /api/v1/attempts/attempts/{attempt_pk}/answers/:
     get:
       operationId: v1_attempts_attempts_answers_list
-      description: Retrieve all answers belonging to an attempt.
+      description: Retrieve all answers belonging to an attempt. Correctness (is_correct)
+        is intentionally excluded while the attempt is in progress; it is only available
+        after scoring.
       summary: List answers for attempt
       parameters:
       - in: path
@@ -369,7 +371,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/UserAnswerRead'
+                  $ref: '#/components/schemas/UserAnswerPlayer'
           description: ''
         '401':
           description: Not authenticated
@@ -412,7 +414,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/UserAnswerRead'
+                  $ref: '#/components/schemas/UserAnswerPlayer'
           description: ''
         '400':
           description: Validation error
@@ -456,7 +458,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserAnswerRead'
+                $ref: '#/components/schemas/UserAnswerPlayer'
           description: ''
         '400':
           description: Validation error or attempt not in progress
@@ -559,8 +561,11 @@ paths:
     post:
       operationId: v1_attempts_attempts_score_create
       description: Score a submitted attempt (transition from submitted to scored).
-        Requires content_manager or platform_admin role.
-      summary: Score attempt
+        Scoring is normally triggered automatically when a student submits via POST
+        /submit/. This endpoint is an admin-only recovery path for attempts that remain
+        in 'submitted' status due to an auto-score failure. Requires content_manager
+        or platform_admin role.
+      summary: Score attempt (admin override)
       parameters:
       - in: path
         name: id
@@ -964,6 +969,8 @@ paths:
             cookies.
         '401':
           description: Invalid credentials
+        '423':
+          description: Account temporarily locked after too many failed login attempts
   /api/v1/auth/logout/:
     post:
       operationId: auth_logout
@@ -975,6 +982,31 @@ paths:
       responses:
         '200':
           description: Logged out. Auth cookies cleared.
+  /api/v1/auth/password/change/:
+    post:
+      operationId: auth_password_change
+      summary: Change user password while logged in
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordChangeRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PasswordChangeRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PasswordChangeRequest'
+        required: true
+      security:
+      - cookieJWT: []
+      responses:
+        '200':
+          description: Password changed successfully.
+        '400':
+          description: Validation error
   /api/v1/auth/password/confirm/:
     post:
       operationId: auth_password_reset_confirm
@@ -1419,7 +1451,9 @@ paths:
   /api/v1/options/{id}/:
     get:
       operationId: v1_options_retrieve
-      description: Get a single option by ID.
+      description: Get a single option by ID. The correct-option marker (is_correct)
+        is included only for content-authoring roles; other users receive the student-safe
+        payload.
       summary: Retrieve question option
       parameters:
       - in: path
@@ -1654,6 +1688,8 @@ paths:
     get:
       operationId: v1_questions_list
       description: List questions with optional exam_id and review_status filters.
+        Answer keys (option.is_correct, explanation) are included only for content-authoring
+        roles; other users receive the student-safe payload.
       summary: List questions
       parameters:
       - in: query
@@ -1724,7 +1760,9 @@ paths:
   /api/v1/questions/{id}/:
     get:
       operationId: v1_questions_retrieve
-      description: Get a single question by ID.
+      description: Get a single question by ID. Answer keys (option.is_correct, explanation)
+        are included only for content-authoring roles; other users receive the student-safe
+        payload.
       summary: Retrieve question
       parameters:
       - in: path
@@ -1964,7 +2002,9 @@ paths:
   /api/v1/questions/{question_pk}/options/:
     get:
       operationId: v1_questions_options_list
-      description: Retrieve all options belonging to a question.
+      description: Retrieve all options belonging to a question. The correct-option
+        marker (is_correct) is included only for content-authoring roles; other users
+        receive the student-safe payload.
       summary: List options for question
       parameters:
       - in: path
@@ -2294,6 +2334,8 @@ paths:
     get:
       operationId: v1_questions_published_list
       description: List published questions for practice. Optionally filter by exam_id.
+        Answer keys (option.is_correct) and the explanation are excluded so the payload
+        cannot reveal the answer.
       summary: List published questions
       parameters:
       - in: query
@@ -2313,7 +2355,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/QuestionRead'
+                  $ref: '#/components/schemas/StudentQuestion'
           description: ''
         '400':
           description: Invalid query parameter
@@ -2324,7 +2366,8 @@ paths:
   /api/v1/questions/published/{id}/:
     get:
       operationId: v1_questions_published_retrieve
-      description: Get a single published question by ID.
+      description: Get a single published question by ID. Answer keys (option.is_correct)
+        and the explanation are excluded so the payload cannot reveal the answer.
       summary: Retrieve published question
       parameters:
       - in: path
@@ -2342,7 +2385,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/QuestionRead'
+                $ref: '#/components/schemas/StudentQuestion'
           description: ''
         '401':
           description: Not authenticated
@@ -2353,7 +2396,8 @@ paths:
   /api/v1/questions/published/by-subtopic/{subtopic_id}/:
     get:
       operationId: v1_questions_published_by_subtopic_list
-      description: List published questions for a specific subtopic.
+      description: List published questions for a specific subtopic. Answer keys (option.is_correct)
+        and the explanation are excluded so the payload cannot reveal the answer.
       summary: List published questions by subtopic
       parameters:
       - in: path
@@ -2373,7 +2417,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/QuestionRead'
+                  $ref: '#/components/schemas/StudentQuestion'
           description: ''
         '401':
           description: Not authenticated
@@ -3669,6 +3713,35 @@ components:
         * `system` - System
         * `previous_year` - Previous Year
         * `custom` - Custom
+    OriginA12Enum:
+      enum:
+      - official
+      - ai
+      - manual
+      type: string
+      description: |-
+        * `official` - Official
+        * `ai` - AI Generated
+        * `manual` - Manual
+    PasswordChangeRequest:
+      type: object
+      properties:
+        current_password:
+          type: string
+          writeOnly: true
+          minLength: 1
+        new_password:
+          type: string
+          writeOnly: true
+          minLength: 8
+        new_password_confirm:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - current_password
+      - new_password
+      - new_password_confirm
     PasswordResetConfirmRequest:
       type: object
       properties:
@@ -4196,6 +4269,29 @@ components:
       - id
       - label
       - question_id
+    QuestionOptionStudentNested:
+      type: object
+      description: Option as shown to a student inside a question (no correctness
+        marker).
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        label:
+          type: string
+          maxLength: 5
+        body:
+          type: string
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+      required:
+      - body
+      - id
+      - label
     QuestionRead:
       type: object
       properties:
@@ -4226,7 +4322,7 @@ components:
           readOnly: true
         origin:
           allOf:
-          - $ref: '#/components/schemas/QuestionReadOriginEnum'
+          - $ref: '#/components/schemas/OriginA12Enum'
           readOnly: true
         review_status:
           allOf:
@@ -4267,16 +4363,6 @@ components:
       - tags
       - updated_at
       - verified_by_id
-    QuestionReadOriginEnum:
-      enum:
-      - official
-      - ai
-      - manual
-      type: string
-      description: |-
-        * `official` - Official
-        * `ai` - AI Generated
-        * `manual` - Manual
     QuestionStatRead:
       type: object
       properties:
@@ -4556,6 +4642,20 @@ components:
       - total_questions
       - updated_at
       - user_id
+    State0f3Enum:
+      enum:
+      - not_visited
+      - visited
+      - answered
+      - marked
+      - answered_marked
+      type: string
+      description: |-
+        * `not_visited` - Not Visited
+        * `visited` - Visited
+        * `answered` - Answered
+        * `marked` - Marked
+        * `answered_marked` - Answered & Marked
     Status3c9Enum:
       enum:
       - created
@@ -4568,6 +4668,73 @@ components:
         * `in_progress` - In Progress
         * `submitted` - Submitted
         * `scored` - Scored
+    StudentQuestion:
+      type: object
+      description: Question as shown to a student/learner (excludes answer keys).
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        exam_id:
+          type: string
+          format: uuid
+          readOnly: true
+        subtopic_id:
+          type: string
+          format: uuid
+          readOnly: true
+        stem:
+          type: string
+          readOnly: true
+        difficulty:
+          type: integer
+          readOnly: true
+        language:
+          type: string
+          readOnly: true
+        origin:
+          allOf:
+          - $ref: '#/components/schemas/OriginA12Enum'
+          readOnly: true
+        review_status:
+          allOf:
+          - $ref: '#/components/schemas/ReviewStatusEnum'
+          readOnly: true
+        verified_by_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        tags:
+          readOnly: true
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuestionOptionStudentNested'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - difficulty
+      - exam_id
+      - id
+      - language
+      - options
+      - origin
+      - review_status
+      - stem
+      - subtopic_id
+      - tags
+      - updated_at
+      - verified_by_id
     SubjectCreateRequest:
       type: object
       properties:
@@ -4858,6 +5025,51 @@ components:
             $ref: '#/components/schemas/UserAnswerSaveRequest'
       required:
       - answers
+    UserAnswerPlayer:
+      type: object
+      description: Answer as shown during an in-progress attempt (excludes correctness).
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        attempt_id:
+          type: string
+          format: uuid
+          readOnly: true
+        question_id:
+          type: string
+          format: uuid
+          readOnly: true
+        selected_option_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        state:
+          allOf:
+          - $ref: '#/components/schemas/State0f3Enum'
+          readOnly: true
+        time_spent_seconds:
+          type: integer
+          readOnly: true
+        answered_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - answered_at
+      - attempt_id
+      - created_at
+      - id
+      - question_id
+      - selected_option_id
+      - state
+      - time_spent_seconds
     UserAnswerRead:
       type: object
       properties:
@@ -4879,7 +5091,7 @@ components:
           nullable: true
         state:
           allOf:
-          - $ref: '#/components/schemas/UserAnswerReadStateEnum'
+          - $ref: '#/components/schemas/State0f3Enum'
           readOnly: true
         is_correct:
           type: boolean
@@ -4907,20 +5119,6 @@ components:
       - selected_option_id
       - state
       - time_spent_seconds
-    UserAnswerReadStateEnum:
-      enum:
-      - not_visited
-      - visited
-      - answered
-      - marked
-      - answered_marked
-      type: string
-      description: |-
-        * `not_visited` - Not Visited
-        * `visited` - Visited
-        * `answered` - Answered
-        * `marked` - Marked
-        * `answered_marked` - Answered & Marked
     UserAnswerSaveRequest:
       type: object
       properties:
@@ -5007,12 +5205,18 @@ components:
           type: string
           format: date-time
           readOnly: true
+        roles:
+          type: array
+          items:
+            type: string
+          readOnly: true
       required:
       - created_at
       - email
       - full_name
       - id
       - is_email_verified
+      - roles
       - status
       - target_exam_id
     UserProfileStatusEnum:

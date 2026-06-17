@@ -52,6 +52,45 @@ class TestLogin:
         assert "Account suspended" in resp.data["detail"]
 
 
+class TestLoginLockout:
+    """PH-4.3: lockout surfaces as 423 Locked, distinct from 401 invalid."""
+
+    def test_repeated_failures_return_423_after_threshold(self, api_client, settings):
+        settings.ACCOUNT_LOCKOUT_THRESHOLD = 3
+        user = UserFactory(verified=True)
+        payload = {"email": user.email, "password": "WrongPass123!"}
+
+        # Failures below threshold are 401 Invalid credentials.
+        for _ in range(2):
+            resp = api_client.post(LOGIN_URL, payload, format="json")
+            assert resp.status_code == status.HTTP_401_UNAUTHORIZED
+
+        # The threshold-th failure locks the account → 423.
+        resp = api_client.post(LOGIN_URL, payload, format="json")
+        assert resp.status_code == status.HTTP_423_LOCKED
+
+    def test_locked_account_returns_423_for_correct_password(self, api_client, settings):
+        from datetime import timedelta
+        from django.utils import timezone
+
+        user = UserFactory(verified=True)
+        user.locked_until = timezone.now() + timedelta(minutes=15)
+        user.save(update_fields=["locked_until"])
+
+        resp = api_client.post(
+            LOGIN_URL, {"email": user.email, "password": "TestPass123!"}, format="json"
+        )
+        assert resp.status_code == status.HTTP_423_LOCKED
+
+    def test_invalid_credentials_not_locked_returns_401(self, api_client, settings):
+        settings.ACCOUNT_LOCKOUT_THRESHOLD = 5
+        user = UserFactory(verified=True)
+        resp = api_client.post(
+            LOGIN_URL, {"email": user.email, "password": "WrongPass123!"}, format="json"
+        )
+        assert resp.status_code == status.HTTP_401_UNAUTHORIZED
+
+
 class TestLogout:
     def test_logout_blacklists_token_and_clears_cookies(self, api_client):
         user = UserFactory(verified=True)

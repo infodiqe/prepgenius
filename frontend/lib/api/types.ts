@@ -2483,6 +2483,7 @@ export interface components {
             readonly is_email_verified: boolean;
             /** Format: date-time */
             readonly created_at: string;
+            readonly roles: readonly string[];
         };
         /**
          * @description * `pending` - pending

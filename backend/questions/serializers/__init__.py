@@ -10,10 +10,13 @@ from .question_serializers import (
     QuestionOptionCreateSerializer,
     QuestionOptionNestedSerializer,
     QuestionOptionReadSerializer,
+    QuestionOptionStudentNestedSerializer,
+    QuestionOptionStudentReadSerializer,
     QuestionOptionUpdateSerializer,
     QuestionReadSerializer,
     QuestionStatReadSerializer,
     QuestionUpdateSerializer,
+    StudentQuestionSerializer,
 )
 
 __all__ = [
@@ -24,6 +27,9 @@ __all__ = [
     "QuestionOptionCreateSerializer",
     "QuestionOptionUpdateSerializer",
     "QuestionOptionNestedSerializer",
+    "QuestionOptionStudentNestedSerializer",
+    "QuestionOptionStudentReadSerializer",
+    "StudentQuestionSerializer",
     "QuestionAppearanceReadSerializer",
     "QuestionAppearanceCreateSerializer",
     "QuestionAppearanceUpdateSerializer",

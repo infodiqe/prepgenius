@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from attempts.models import ExamAttempt, MockTest, MockTestQuestion, UserAnswer
@@ -223,6 +224,36 @@ class UserAnswerReadSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+# PH-7.1 security note (internal): UserAnswerPlayerSerializer is the student-safe
+# answer representation for an IN-PROGRESS attempt. It is identical to
+# UserAnswerReadSerializer except it omits `is_correct`, so the mock player cannot
+# infer the right answer mid-attempt. Correctness is only revealed after scoring,
+# via ScoredAttemptDetailSerializer / the results endpoints. DO NOT add
+# `is_correct` (or any other correctness signal) to this serializer.
+class UserAnswerPlayerSerializer(serializers.ModelSerializer):
+    """Answer as shown during an in-progress attempt (excludes correctness)."""
+
+    attempt_id = serializers.UUIDField(read_only=True)
+    question_id = serializers.UUIDField(read_only=True)
+    selected_option_id = serializers.UUIDField(
+        read_only=True, allow_null=True
+    )
+
+    class Meta:
+        model = UserAnswer
+        fields = [
+            "id",
+            "attempt_id",
+            "question_id",
+            "selected_option_id",
+            "state",
+            "time_spent_seconds",
+            "answered_at",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+
 class UserAnswerSaveSerializer(serializers.Serializer):
     question_id = serializers.UUIDField(
         help_text="ID of the question being answered"
@@ -253,7 +284,18 @@ class ScoredAttemptDetailSerializer(serializers.ModelSerializer):
     user_id = serializers.UUIDField(read_only=True)
     exam_id = serializers.UUIDField(read_only=True)
     mock_test_id = serializers.UUIDField(read_only=True, allow_null=True)
-    answers = UserAnswerReadSerializer(many=True, read_only=True)
+    answers = serializers.SerializerMethodField()
+
+    @extend_schema_field(UserAnswerReadSerializer(many=True))
+    def get_answers(self, obj: ExamAttempt) -> list:
+        # P0-1: correctness (is_correct) is only revealed once the attempt is
+        # scored. While in_progress/submitted this serializer also backs
+        # GET /attempts/{id}/, so use the player serializer there to avoid
+        # leaking answer keys mid-exam. Scored attempts keep full correctness.
+        answers = obj.answers.all()
+        if obj.status == "scored":
+            return UserAnswerReadSerializer(answers, many=True).data
+        return UserAnswerPlayerSerializer(answers, many=True).data
 
     class Meta:
         model = ExamAttempt

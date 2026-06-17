@@ -1,4 +1,5 @@
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from accounts.models import User
@@ -82,6 +83,28 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         return attrs
 
 
+class PasswordChangeSerializer(serializers.Serializer):
+    current_password = serializers.CharField(
+        write_only=True,
+        style={"input_type": "password"},
+    )
+    new_password = serializers.CharField(
+        write_only=True,
+        min_length=8,
+        style={"input_type": "password"},
+    )
+    new_password_confirm = serializers.CharField(
+        write_only=True,
+        style={"input_type": "password"},
+    )
+
+    def validate(self, attrs: dict) -> dict:
+        if attrs["new_password"] != attrs["new_password_confirm"]:
+            raise serializers.ValidationError("New passwords do not match")
+        attrs.pop("new_password_confirm")
+        return attrs
+
+
 class DeleteAccountSerializer(serializers.Serializer):
     password = serializers.CharField(
         write_only=True,
@@ -110,6 +133,8 @@ class UpdateProfileSerializer(serializers.Serializer):
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
+    roles = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = [
@@ -124,6 +149,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "status",
             "is_email_verified",
             "created_at",
+            "roles",
         ]
         read_only_fields = [
             "id",
@@ -131,4 +157,10 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "status",
             "is_email_verified",
             "created_at",
+            "roles",
         ]
+
+    @extend_schema_field(serializers.ListField(child=serializers.CharField()))
+    def get_roles(self, obj: User) -> list[str]:
+        """Names of all roles assigned to the user (e.g. ``platform_admin``)."""
+        return list(obj.user_roles.values_list("role__name", flat=True))
