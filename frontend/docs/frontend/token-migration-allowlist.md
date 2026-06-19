@@ -55,7 +55,6 @@ app/login/**
 app/register/**
 app/reset-password/**
 app/forgot-password/**
-app/verify-email/**
 ```
 
 ~59 files / 185 occurrences at introduction. Target order (per the Sprint
@@ -66,4 +65,6 @@ player.
 
 `app/layout.tsx`, `app/page.tsx`, `features/nav/**` (Sidebar, TopBar,
 BottomTabBar, AppShell, navIcons), `features/theme/**`, `features/workspace/**`,
-`lib/**`, `app/globals.css` (token source). New color literals here fail lint.
+`features/auth/**` (RegistrationForm, VerifyEmailForm + shared form primitives),
+`app/verify-email/**` (migrated in S1-T07), `lib/**`, `app/globals.css` (token
+source). New color literals here fail lint.
