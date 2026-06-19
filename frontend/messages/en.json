@@ -122,6 +122,33 @@
     "no_exams_title": "No exams available yet",
     "no_exams_desc": "There are no active exams to choose from right now. Please check back soon."
   },
+  "diagnostic": {
+    "title": "Take your diagnostic assessment",
+    "description": "Start with a quick diagnostic so we can map your strengths and weak areas and tailor your daily practice.",
+    "cta": "Start Diagnostic",
+    "launching": "Starting your diagnostic…",
+    "launch_success": "Your diagnostic is ready. Good luck!"
+  },
+  "diagnostic_complete": {
+    "title_scored": "Diagnostic complete!",
+    "subtitle_scored": "Here's how you did on your first assessment.",
+    "title_pending": "Scoring your diagnostic…",
+    "subtitle_pending": "This usually takes a few seconds. Refresh to check again.",
+    "title_error": "Couldn't load your results",
+    "subtitle_error": "Something went wrong fetching your diagnostic results. Please try again.",
+    "loading": "Loading your diagnostic results…",
+    "pending_announce": "Scoring is still in progress.",
+    "stat_score": "Score",
+    "stat_accuracy": "Accuracy",
+    "stat_total": "Total Questions",
+    "stat_correct": "Correct Answers",
+    "view_results": "View Full Results",
+    "go_dashboard": "Go to Dashboard",
+    "refresh": "Refresh",
+    "refreshing": "Checking…",
+    "retry": "Try Again",
+    "scored_success": "Your diagnostic has been scored."
+  },
   "dashboard": {
     "good_morning": "Good Morning, {name}",
     "good_afternoon": "Good Afternoon, {name}",

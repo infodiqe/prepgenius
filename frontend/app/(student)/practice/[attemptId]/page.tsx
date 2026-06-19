@@ -31,11 +31,13 @@ import Link from 'next/link';
 import { getCurrentUser } from '@/features/auth/serverAuth';
 import { getAttemptDetailServer } from '@/features/attempts/attemptServerService';
 import { MockPlayerShell } from '@/features/mock-player/MockPlayerShell';
+import { resolveCompletionHref } from '@/features/mock-player/completionHref';
 import type { components } from '@/lib/api/types';
 import type { AttemptType, AttemptStatus } from '@/features/mock-player/types';
 
 interface PageProps {
   params: Promise<{ attemptId: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 // ─── Anti-cheat type: is_correct removed from each answer ─────────────────────
@@ -63,8 +65,13 @@ function stripIsCorrect(answers: readonly RawAnswer[]): StrippedAnswerForPlayer[
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default async function PracticeAttemptPage({ params }: PageProps) {
+export default async function PracticeAttemptPage({ params, searchParams }: PageProps) {
   const { attemptId } = await params;
+
+  // SPR1-HOTFIX-02: the diagnostic flow finalises on the diagnostic completion
+  // screen rather than the generic results page. Everything else is unchanged.
+  const { flow } = await searchParams;
+  const completionHref = resolveCompletionHref(attemptId, flow);
 
   // ── Auth check ──────────────────────────────────────────────────────────────
   const user = await getCurrentUser();
@@ -95,13 +102,14 @@ export default async function PracticeAttemptPage({ params }: PageProps) {
   // ── Status routing ──────────────────────────────────────────────────────────
 
   if (attempt.status === 'scored') {
-    redirect(`/results/${attemptId}`);
+    redirect(completionHref);
   }
 
   // 'submitted' = auto-score failed (extremely rare with hotfix).
-  // Redirect to results; the results page handles the pending/scored state.
+  // Redirect to the completion destination; both the results and diagnostic
+  // screens handle the pending/scored state.
   if (attempt.status === 'submitted') {
-    redirect(`/results/${attemptId}`);
+    redirect(completionHref);
   }
 
   // ── MVP scope check ─────────────────────────────────────────────────────────
@@ -143,6 +151,7 @@ export default async function PracticeAttemptPage({ params }: PageProps) {
       startedAt={attempt.started_at ?? null}
       durationSeconds={attempt.duration_seconds ?? null}
       existingAnswers={existingAnswers}
+      completionHref={completionHref}
     />
   );
 }

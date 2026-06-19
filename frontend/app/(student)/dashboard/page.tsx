@@ -2,7 +2,9 @@ import React, { Suspense } from "react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { getDashboardServer } from "@/features/dashboard/dashboardService";
-import { getExamDetailsServer } from "@/features/practice/practiceService";
+import { getExamDetailsServer, listAttemptsServer } from "@/features/practice/practiceService";
+import { DiagnosticCard } from "@/features/diagnostic/DiagnosticCard";
+import { readDiagnosticMockTestId } from "@/features/diagnostic/diagnosticGate";
 import { getCurrentUser } from "@/features/auth/serverAuth";
 import DashboardSkeleton from "@/features/dashboard/components/DashboardSkeleton";
 import StatCard from "@/features/dashboard/components/StatCard";
@@ -38,11 +40,18 @@ async function DashboardContent() {
 
   const targetExamId = user.target_exam_id || undefined;
 
-  // Parallel: dashboard rollup + exam details (for name)
-  const [dashboardData, examDetail] = await Promise.all([
+  // Parallel: dashboard rollup + exam details (for name) + attempts (T13:
+  // detect whether the student has launched any assessment yet).
+  const [dashboardData, examDetail, attempts] = await Promise.all([
     getDashboardServer(targetExamId),
     targetExamId ? getExamDetailsServer(targetExamId) : Promise.resolve(null),
+    targetExamId ? listAttemptsServer(targetExamId) : Promise.resolve(null),
   ]);
+
+  // First-run diagnostic gate: a freshly-onboarded student has no attempts yet,
+  // AND the exam must have a configured diagnostic mock test (SPR1-HOTFIX-02).
+  const hasAttempts = (attempts ?? []).length > 0;
+  const diagnosticMockTestId = readDiagnosticMockTestId(examDetail?.blueprint);
 
   const streak = dashboardData?.streak ?? 0;
   const dailyTarget = dashboardData?.daily_target ?? 10;
@@ -112,6 +121,15 @@ async function DashboardContent() {
 
       {user.target_exam_id && (
         <>
+          {/* ── T13 / SPR1-HOTFIX-02: First diagnostic entry — only before any
+                 attempt exists AND when a diagnostic mock test is configured. ── */}
+          {!hasAttempts && diagnosticMockTestId && (
+            <DiagnosticCard
+              examId={user.target_exam_id}
+              diagnosticMockTestId={diagnosticMockTestId}
+            />
+          )}
+
           {/* ── SECTION 2: STATS GRID ── */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard

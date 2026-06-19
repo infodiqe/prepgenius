@@ -118,6 +118,13 @@ export interface MockPlayerShellProps {
   durationSeconds: number | null;
   /** Server-acknowledged answers with is_correct stripped by page.tsx RSC */
   existingAnswers: StrippedAnswer[];
+  /**
+   * Where to navigate once the attempt is finalised (submitted/scored).
+   * Defaults to the standard results page; the diagnostic flow (SPR1-HOTFIX-02)
+   * passes `/diagnostic/{attemptId}`. ONLY the redirect destination changes —
+   * timer, anti-cheat, offline queue, answer handling and scoring are untouched.
+   */
+  completionHref?: string;
 }
 
 // ─── Answer merge ─────────────────────────────────────────────────────────────
@@ -185,11 +192,16 @@ function PlayerCore({
   startedAt: initialStartedAt,
   durationSeconds: initialDurationSeconds,
   existingAnswers,
+  completionHref,
 }: MockPlayerShellProps) {
   const { state, dispatch } = usePlayerState();
   const router = useRouter();
   const idb = useIndexedDB();
   const t = useTranslations('player');
+
+  // Single finalisation destination (SPR1-HOTFIX-02). Defaults to the standard
+  // results page so non-diagnostic attempts are unchanged.
+  const resolvedCompletionHref = completionHref ?? `/results/${attemptId}`;
 
   // ── Save hook (P0-1: wires SELECT_OPTION saves; P1-1: initial visited save) ─
   const { saveAnswer } = useSaveAnswer();
@@ -200,8 +212,8 @@ function PlayerCore({
   // ── Offline queue ───────────────────────────────────────────────────────────
 
   const handleAttemptAutoSubmitted = useCallback(() => {
-    router.push(`/results/${attemptId}`);
-  }, [router, attemptId]);
+    router.push(resolvedCompletionHref);
+  }, [router, resolvedCompletionHref]);
 
   const { flushNow } = useOfflineQueue(handleAttemptAutoSubmitted);
 
@@ -432,8 +444,8 @@ function PlayerCore({
 
   const redirectToResults = useCallback(async () => {
     await idb.cleanupAttemptData(attemptId);
-    router.push(`/results/${attemptId}`);
-  }, [idb, attemptId, router]);
+    router.push(resolvedCompletionHref);
+  }, [idb, attemptId, router, resolvedCompletionHref]);
 
   // Poll GET /attempts/{id}/ for the rare 'submitted' (scoring failed) edge case.
   const startPolling = useCallback(() => {
@@ -547,13 +559,13 @@ function PlayerCore({
         attempt.attemptStatus === 'scored' ||
         attempt.attemptStatus === 'submitted'
       ) {
-        router.push(`/results/${attemptId}`);
+        router.push(resolvedCompletionHref);
       }
       // If still in_progress: startedAt hasn't changed; timer continues.
     } catch {
       // Network error during focus re-check; timer continues from last state.
     }
-  }, [attemptId, router]);
+  }, [attemptId, router, resolvedCompletionHref]);
 
   // ── Timer ────────────────────────────────────────────────────────────────────
   // Started automatically when state.startedAt becomes non-empty (after LOAD_SESSION).

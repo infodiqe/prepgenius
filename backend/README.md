@@ -15,6 +15,24 @@ settings use SQLite in-memory, local-memory cache, and eager Celery, so **no
 Postgres or Redis is required** to run the suite. External providers (AI,
 Razorpay, Twilio, Telegram) are mocked — the suite makes no live calls.
 
+## Seeding & activation readiness
+
+Provision a fresh database with the single idempotent orchestrator (it runs all
+seed commands in dependency order — roles, CTET exam/taxonomy, previous-year
+papers, questions, approvals, and the CTET diagnostic mock test):
+
+```bash
+python manage.py migrate
+python manage.py seed_all
+python manage.py verify_diagnostic_readiness   # read-only readiness gate
+```
+
+`verify_diagnostic_readiness` exits non-zero if any activation prerequisite is
+missing (exam, published diagnostic mock test, question mappings,
+`blueprint.diagnostic_mock_test_id`). Full operator runbook — required services,
+Celery/email requirements, and the end-to-end validation procedure — is in
+[`docs/operations/activation-readiness.md`](../docs/operations/activation-readiness.md).
+
 ## Scheduled tasks (Celery Beat)
 
 Periodic tasks are defined in `CELERY_BEAT_SCHEDULE` (`config/settings/base.py`)
