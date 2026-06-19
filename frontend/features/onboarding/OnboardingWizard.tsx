@@ -8,8 +8,6 @@ import { useTranslations } from "next-intl";
 import { Check, ChevronLeft } from "lucide-react";
 
 import {
-  Input,
-  FormField,
   SubmitButton,
   Button,
   Card,
@@ -18,12 +16,12 @@ import {
   CardDescription,
   CardContent,
 } from "@/components/ui";
-import { cn } from "@/lib/utils";
 import { updateProfile } from "@/features/auth/authService";
 import { useAuth } from "@/features/auth/AuthContext";
 import { toast } from "@/features/feedback/useToast";
 import { useErrorToast } from "@/features/feedback/useErrorToast";
 import { ExamPicker } from "@/features/exams/ExamPicker";
+import { ExamDatePicker } from "@/features/exams/ExamDatePicker";
 import {
   buildOnboardingSchema,
   todayIso,
@@ -72,7 +70,6 @@ export default function OnboardingWizard({
   const schema = React.useMemo(() => buildOnboardingSchema(t), [t]);
 
   const {
-    register,
     control,
     handleSubmit,
     trigger,
@@ -98,7 +95,6 @@ export default function OnboardingWizard({
 
   const values = watch();
   const selectedExam = exams.find((e) => e.id === values.target_exam_id);
-  const errorClass = "border-destructive focus-visible:ring-destructive";
 
   const onValidSave = async (data: OnboardingFormValues) => {
     try {
@@ -179,24 +175,24 @@ export default function OnboardingWizard({
             )}
 
             {step === STEP_DATE && (
-              <FormField
-                id="exam_date"
-                label={t("date_label")}
-                description={t("date_help")}
-                error={errors.exam_date?.message}
-                required
-              >
-                {(field) => (
-                  <Input
-                    type="date"
-                    min={today}
+              <Controller
+                control={control}
+                name="exam_date"
+                render={({ field }) => (
+                  <ExamDatePicker
+                    id="exam_date"
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
                     disabled={isSubmitting}
-                    className={cn(errors.exam_date && errorClass)}
-                    {...field}
-                    {...register("exam_date")}
+                    error={errors.exam_date?.message}
+                    required
+                    minDate={today}
+                    label={t("date_label")}
+                    description={t("date_help")}
                   />
                 )}
-              </FormField>
+              />
             )}
 
             {step === STEP_REVIEW && (
