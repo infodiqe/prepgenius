@@ -12,6 +12,7 @@ const valid = {
   password: "password123",
   password_confirm: "password123",
   preferred_language: "as" as const,
+  consent: true,
 };
 
 /** Collect zod issues keyed by field path for easy assertions. */
@@ -88,5 +89,14 @@ describe("registrationSchema — field validation", () => {
     expect(
       errorsFor({ ...valid, preferred_language: "fr" }).preferred_language,
     ).toBeTruthy();
+  });
+
+  it("requires consent to be explicitly accepted (T06)", () => {
+    expect(errorsFor({ ...valid, consent: false }).consent).toBe(
+      "val_consent_required",
+    );
+    // Missing consent is also rejected — the gate cannot be bypassed.
+    const { consent, ...withoutConsent } = valid;
+    expect(schema.safeParse(withoutConsent).success).toBe(false);
   });
 });

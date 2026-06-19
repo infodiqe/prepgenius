@@ -27,6 +27,8 @@ const REQUIRED_AUTH_KEYS = [
   "have_account",
   "login",
   "success_register",
+  // DPDP consent (T06)
+  "consent_acknowledgement",
   // Validation messages
   "val_name_required",
   "val_email_required",
@@ -35,6 +37,7 @@ const REQUIRED_AUTH_KEYS = [
   "val_password_required",
   "val_password_min",
   "val_password_confirm_required",
+  "val_consent_required",
   "passwords_do_not_match",
 ] as const;
 
@@ -55,11 +58,13 @@ describe("registration i18n key coverage", () => {
     });
   }
 
-  it("does not introduce consent strings (deferred to T06)", () => {
-    for (const messages of Object.values(LOCALES)) {
-      expect(
-        Object.keys(messages.auth).some((k) => k.toLowerCase().includes("consent")),
-      ).toBe(false);
+  it("consent acknowledgement carries the privacy + terms link tags (T06)", () => {
+    for (const [locale, messages] of Object.entries(LOCALES)) {
+      const text = messages.auth.consent_acknowledgement;
+      expect(text, `${locale} privacy tag`).toContain("<privacy>");
+      expect(text, `${locale} privacy tag`).toContain("</privacy>");
+      expect(text, `${locale} terms tag`).toContain("<terms>");
+      expect(text, `${locale} terms tag`).toContain("</terms>");
     }
   });
 });

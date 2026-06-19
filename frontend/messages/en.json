@@ -86,7 +86,9 @@
     "val_phone_invalid": "Enter a valid phone number in international format, e.g. +919812345678.",
     "val_password_required": "Password is required.",
     "val_password_min": "Password must be at least 8 characters.",
-    "val_password_confirm_required": "Please confirm your password."
+    "val_password_confirm_required": "Please confirm your password.",
+    "consent_acknowledgement": "I agree to the <privacy>Privacy Policy</privacy> and <terms>Terms of Service</terms>.",
+    "val_consent_required": "You must accept the Privacy Policy and Terms to continue."
   },
   "dashboard": {
     "good_morning": "Good Morning, {name}",

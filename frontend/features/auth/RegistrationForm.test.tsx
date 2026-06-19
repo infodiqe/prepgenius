@@ -18,8 +18,30 @@ const spies = vi.hoisted(() => ({
 }));
 
 // Identity translator → assertions check the i18n key that was selected.
+// `rich` renders the privacy/terms link chunks so consent links are assertable.
 vi.mock("next-intl", () => ({
-  useTranslations: () => (k: string) => k,
+  useTranslations: () => {
+    const t = ((k: string) => k) as ((k: string) => string) & {
+      rich: (
+        k: string,
+        tags: Record<string, (chunks: React.ReactNode) => React.ReactNode>,
+      ) => React.ReactNode;
+    };
+    t.rich = (k, tags) => (
+      <>
+        {k} {tags.privacy?.("privacy")} {tags.terms?.("terms")}
+      </>
+    );
+    return t;
+  },
+}));
+vi.mock("next/link", () => ({
+  __esModule: true,
+  default: ({ href, children, ...rest }: any) => (
+    <a href={typeof href === "string" ? href : "#"} {...rest}>
+      {children}
+    </a>
+  ),
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: spies.push }),
@@ -64,6 +86,11 @@ function fillValid(overrides: Partial<Record<string, string>> = {}) {
     fireEvent.change(screen.getByLabelText(/phone/), {
       target: { value: overrides.phone },
     });
+  }
+  // Consent is required to submit (T06); leave it unchecked only when asked.
+  if (overrides.consent !== "skip") {
+    const consent = screen.getByRole("checkbox") as HTMLInputElement;
+    if (!consent.checked) fireEvent.click(consent);
   }
 }
 
@@ -163,6 +190,54 @@ describe("RegistrationForm — success handling", () => {
     expect(spies.register.mock.calls[0][0]).toMatchObject({
       phone_e164: "+919812345678",
     });
+  });
+});
+
+describe("RegistrationForm — DPDP consent (T06)", () => {
+  it("renders a required, accessible consent checkbox", () => {
+    render(<RegistrationForm />);
+    const consent = screen.getByRole("checkbox") as HTMLInputElement;
+    expect(consent.id).toBe("consent");
+    expect(consent.checked).toBe(false);
+    expect(consent.getAttribute("aria-required")).toBe("true");
+  });
+
+  it("renders Privacy Policy and Terms links pointing at the policy pages", () => {
+    render(<RegistrationForm />);
+    const links = screen
+      .getAllByRole("link")
+      .map((a) => a.getAttribute("href"));
+    expect(links).toContain("/privacy");
+    expect(links).toContain("/terms");
+  });
+
+  it("blocks submit and surfaces an error when consent is unchecked", async () => {
+    render(<RegistrationForm />);
+    fillValid({ consent: "skip" });
+    submit();
+
+    await waitFor(() =>
+      expect(screen.getByText("val_consent_required")).toBeTruthy(),
+    );
+    expect(spies.register).not.toHaveBeenCalled();
+
+    // Error is wired to the checkbox for assistive tech.
+    const consent = screen.getByRole("checkbox");
+    expect(consent.getAttribute("aria-invalid")).toBe("true");
+    expect(consent.getAttribute("aria-describedby")).toBe("consent-error");
+    expect(document.getElementById("consent-error")?.getAttribute("role")).toBe(
+      "alert",
+    );
+  });
+
+  it("submits once consent is checked and never sends it in the payload", async () => {
+    spies.register.mockResolvedValue({ detail: "ok" });
+    render(<RegistrationForm />);
+    fillValid();
+    submit();
+
+    await waitFor(() => expect(spies.register).toHaveBeenCalledTimes(1));
+    expect(spies.register.mock.calls[0][0]).not.toHaveProperty("consent");
   });
 });
 

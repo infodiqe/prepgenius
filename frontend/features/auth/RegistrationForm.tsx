@@ -4,13 +4,18 @@ import * as React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Eye, EyeOff } from "lucide-react";
 
 import {
-  Button,
   Input,
+  PasswordInput,
+  Checkbox,
   Label,
+  FormField,
+  FieldError,
+  SubmitButton,
+  Button,
   Card,
   CardHeader,
   CardTitle,
@@ -30,14 +35,15 @@ import {
 } from "@/features/auth/registrationSchema";
 
 /*
- * Registration Form Foundation — Sprint 1 · T05a.
+ * Registration form — Sprint 1 · T05a, refactored onto the shared form
+ * primitives in T05b. Validation (RHF + Zod), T01 toasts, T02 error framework,
+ * and the existing /api/v1/auth/register/ flow are unchanged; the field markup
+ * comes from FormField / PasswordInput / SubmitButton.
  *
- * React Hook Form + Zod validation, T01 toasts for success/global errors, T02
- * error framework (useErrorToast → AppError.fieldErrors) for inline field
- * errors. Token-driven (light/dark), mobile-first (360px), accessible (labels,
- * aria-invalid, aria-describedby, keyboard). Posts to the existing
- * /api/v1/auth/register/ contract and follows the existing verify-email flow.
- * Consent is NOT collected here — that is T06.
+ * T06 adds a required DPDP consent acknowledgement: the checkbox gates submit
+ * (validated client-side via the schema) but is deliberately excluded from the
+ * request payload — the backend creates UserConsent automatically and never
+ * accepts a consent field. No API/auth contract change.
  */
 
 // Native option labels are endonyms (identical across locales) → not translated.
@@ -68,9 +74,6 @@ export default function RegistrationForm() {
   const router = useRouter();
   const notifyError = useErrorToast();
 
-  const [showPassword, setShowPassword] = React.useState(false);
-  const [showConfirm, setShowConfirm] = React.useState(false);
-
   // Rebuild the resolver when the locale (translator) changes so messages stay
   // localized. `t` from next-intl is stable per render of the active locale.
   const schema = React.useMemo(() => buildRegistrationSchema(t), [t]);
@@ -89,6 +92,7 @@ export default function RegistrationForm() {
       password: "",
       password_confirm: "",
       preferred_language: initialLanguage(),
+      consent: false,
     },
   });
 
@@ -120,8 +124,7 @@ export default function RegistrationForm() {
     }
   };
 
-  /** Shared className for inputs/select so error styling stays consistent. */
-  const fieldError = "border-destructive focus-visible:ring-destructive";
+  const errorClass = "border-destructive focus-visible:ring-destructive";
 
   return (
     <Card className="w-full max-w-md">
@@ -135,214 +138,163 @@ export default function RegistrationForm() {
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate>
         <CardContent className="space-y-4">
-          {/* Full name */}
-          <div className="space-y-1.5">
-            <Label htmlFor="full_name">{t("name")}</Label>
-            <Input
-              id="full_name"
-              type="text"
-              autoComplete="name"
-              disabled={isSubmitting}
-              aria-invalid={!!errors.full_name}
-              aria-describedby={errors.full_name ? "full_name-error" : undefined}
-              className={cn(errors.full_name && fieldError)}
-              {...register("full_name")}
-            />
-            {errors.full_name && (
-              <p
-                id="full_name-error"
-                role="alert"
-                className="text-sm font-medium text-destructive"
-              >
-                {errors.full_name.message}
-              </p>
-            )}
-          </div>
-
-          {/* Email */}
-          <div className="space-y-1.5">
-            <Label htmlFor="email">{t("email")}</Label>
-            <Input
-              id="email"
-              type="email"
-              autoComplete="email"
-              placeholder="you@example.com"
-              disabled={isSubmitting}
-              aria-invalid={!!errors.email}
-              aria-describedby={errors.email ? "email-error" : undefined}
-              className={cn(errors.email && fieldError)}
-              {...register("email")}
-            />
-            {errors.email && (
-              <p
-                id="email-error"
-                role="alert"
-                className="text-sm font-medium text-destructive"
-              >
-                {errors.email.message}
-              </p>
-            )}
-          </div>
-
-          {/* Phone (optional) */}
-          <div className="space-y-1.5">
-            <Label htmlFor="phone_e164">
-              {t("phone")}{" "}
-              <span className="text-muted-foreground">
-                ({t("phone_optional_hint")})
-              </span>
-            </Label>
-            <Input
-              id="phone_e164"
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel"
-              placeholder="+919812345678"
-              disabled={isSubmitting}
-              aria-invalid={!!errors.phone_e164}
-              aria-describedby={errors.phone_e164 ? "phone_e164-error" : undefined}
-              className={cn(errors.phone_e164 && fieldError)}
-              {...register("phone_e164")}
-            />
-            {errors.phone_e164 && (
-              <p
-                id="phone_e164-error"
-                role="alert"
-                className="text-sm font-medium text-destructive"
-              >
-                {errors.phone_e164.message}
-              </p>
-            )}
-          </div>
-
-          {/* Password */}
-          <div className="space-y-1.5">
-            <Label htmlFor="password">{t("password")}</Label>
-            <div className="relative">
+          <FormField id="full_name" label={t("name")} error={errors.full_name?.message}>
+            {(field) => (
               <Input
-                id="password"
-                type={showPassword ? "text" : "password"}
+                type="text"
+                autoComplete="name"
+                disabled={isSubmitting}
+                className={cn(errors.full_name && errorClass)}
+                {...field}
+                {...register("full_name")}
+              />
+            )}
+          </FormField>
+
+          <FormField id="email" label={t("email")} error={errors.email?.message}>
+            {(field) => (
+              <Input
+                type="email"
+                autoComplete="email"
+                placeholder="you@example.com"
+                disabled={isSubmitting}
+                className={cn(errors.email && errorClass)}
+                {...field}
+                {...register("email")}
+              />
+            )}
+          </FormField>
+
+          <FormField
+            id="phone_e164"
+            label={t("phone")}
+            description={t("phone_optional_hint")}
+            error={errors.phone_e164?.message}
+          >
+            {(field) => (
+              <Input
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                placeholder="+919812345678"
+                disabled={isSubmitting}
+                className={cn(errors.phone_e164 && errorClass)}
+                {...field}
+                {...register("phone_e164")}
+              />
+            )}
+          </FormField>
+
+          <FormField id="password" label={t("password")} error={errors.password?.message}>
+            {(field) => (
+              <PasswordInput
                 autoComplete="new-password"
                 disabled={isSubmitting}
-                aria-invalid={!!errors.password}
-                aria-describedby={errors.password ? "password-error" : undefined}
-                className={cn("pr-10", errors.password && fieldError)}
+                showAriaLabel={t("show_password")}
+                hideAriaLabel={t("hide_password")}
+                className={cn(errors.password && errorClass)}
+                {...field}
                 {...register("password")}
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-                aria-label={showPassword ? t("hide_password") : t("show_password")}
-              >
-                {showPassword ? (
-                  <EyeOff className="h-4 w-4" aria-hidden="true" />
-                ) : (
-                  <Eye className="h-4 w-4" aria-hidden="true" />
-                )}
-              </button>
-            </div>
-            {errors.password && (
-              <p
-                id="password-error"
-                role="alert"
-                className="text-sm font-medium text-destructive"
-              >
-                {errors.password.message}
-              </p>
             )}
-          </div>
+          </FormField>
 
-          {/* Confirm password */}
-          <div className="space-y-1.5">
-            <Label htmlFor="password_confirm">{t("confirm_password")}</Label>
-            <div className="relative">
-              <Input
-                id="password_confirm"
-                type={showConfirm ? "text" : "password"}
+          <FormField
+            id="password_confirm"
+            label={t("confirm_password")}
+            error={errors.password_confirm?.message}
+          >
+            {(field) => (
+              <PasswordInput
                 autoComplete="new-password"
                 disabled={isSubmitting}
-                aria-invalid={!!errors.password_confirm}
-                aria-describedby={
-                  errors.password_confirm ? "password_confirm-error" : undefined
-                }
-                className={cn("pr-10", errors.password_confirm && fieldError)}
+                showAriaLabel={t("show_password")}
+                hideAriaLabel={t("hide_password")}
+                className={cn(errors.password_confirm && errorClass)}
+                {...field}
                 {...register("password_confirm")}
               />
-              <button
-                type="button"
-                onClick={() => setShowConfirm((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-                aria-label={showConfirm ? t("hide_password") : t("show_password")}
-              >
-                {showConfirm ? (
-                  <EyeOff className="h-4 w-4" aria-hidden="true" />
-                ) : (
-                  <Eye className="h-4 w-4" aria-hidden="true" />
-                )}
-              </button>
-            </div>
-            {errors.password_confirm && (
-              <p
-                id="password_confirm-error"
-                role="alert"
-                className="text-sm font-medium text-destructive"
-              >
-                {errors.password_confirm.message}
-              </p>
             )}
-          </div>
+          </FormField>
 
-          {/* Preferred language */}
-          <div className="space-y-1.5">
-            <Label htmlFor="preferred_language">{t("preferred_language")}</Label>
-            <select
-              id="preferred_language"
-              disabled={isSubmitting}
-              aria-invalid={!!errors.preferred_language}
-              aria-describedby={
-                errors.preferred_language
-                  ? "preferred_language-error"
-                  : undefined
-              }
-              className={cn(
-                "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-                errors.preferred_language && fieldError,
-              )}
-              {...register("preferred_language")}
-            >
-              {PREFERRED_LANGUAGES.map((lang) => (
-                <option key={lang} value={lang}>
-                  {LANGUAGE_LABELS[lang]}
-                </option>
-              ))}
-            </select>
-            {errors.preferred_language && (
-              <p
-                id="preferred_language-error"
-                role="alert"
-                className="text-sm font-medium text-destructive"
+          <FormField
+            id="preferred_language"
+            label={t("preferred_language")}
+            error={errors.preferred_language?.message}
+          >
+            {(field) => (
+              <select
+                disabled={isSubmitting}
+                className={cn(
+                  "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+                  errors.preferred_language && errorClass,
+                )}
+                {...field}
+                {...register("preferred_language")}
               >
-                {errors.preferred_language.message}
-              </p>
+                {PREFERRED_LANGUAGES.map((lang) => (
+                  <option key={lang} value={lang}>
+                    {LANGUAGE_LABELS[lang]}
+                  </option>
+                ))}
+              </select>
             )}
+          </FormField>
+
+          {/*
+           * DPDP consent (T06). Client-only gate: required to submit, never sent
+           * to the API. Links open the policy pages in a new tab; their click is
+           * isolated so following a link does not toggle the wrapping label.
+           */}
+          <div className="space-y-1.5">
+            <div className="flex items-start gap-2">
+              <Checkbox
+                id="consent"
+                disabled={isSubmitting}
+                aria-required
+                aria-invalid={errors.consent ? true : undefined}
+                aria-describedby={errors.consent ? "consent-error" : undefined}
+                className={cn("mt-0.5", errors.consent && errorClass)}
+                {...register("consent")}
+              />
+              <Label
+                htmlFor="consent"
+                className="text-sm font-normal leading-snug text-muted-foreground"
+              >
+                {t.rich("consent_acknowledgement", {
+                  privacy: (chunks) => (
+                    <Link
+                      href="/privacy"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="font-medium text-primary underline underline-offset-4 hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      {chunks}
+                    </Link>
+                  ),
+                  terms: (chunks) => (
+                    <Link
+                      href="/terms"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="font-medium text-primary underline underline-offset-4 hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      {chunks}
+                    </Link>
+                  ),
+                })}
+              </Label>
+            </div>
+            <FieldError id="consent-error">{errors.consent?.message}</FieldError>
           </div>
         </CardContent>
 
         <CardFooter className="flex flex-col space-y-4">
-          <Button type="submit" disabled={isSubmitting} className="w-full">
-            {isSubmitting ? (
-              <span className="flex items-center gap-2">
-                <span
-                  className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none"
-                  aria-hidden="true"
-                />
-                {t("creating_account")}
-              </span>
-            ) : (
-              t("register")
-            )}
-          </Button>
+          <SubmitButton isLoading={isSubmitting} loadingText={t("creating_account")}>
+            {t("register")}
+          </SubmitButton>
 
           <div className="text-center text-xs text-muted-foreground">
             {t("have_account")}{" "}

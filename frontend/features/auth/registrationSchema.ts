@@ -11,6 +11,10 @@ import { z } from "zod";
  *
  * Note: this is *presentation* validation only (format/required/match) — the
  * backend remains the source of truth for auth rules and uniqueness.
+ *
+ * `consent` (T06) is a client-only DPDP acknowledgement: it gates submission in
+ * the UI but is NOT part of the API contract — the backend records UserConsent
+ * automatically at registration, so it is never sent in the request payload.
  */
 
 export const PREFERRED_LANGUAGES = ["as", "en", "hi"] as const;
@@ -28,6 +32,8 @@ export type RegistrationFormValues = {
   password: string;
   password_confirm: string;
   preferred_language: PreferredLanguage;
+  /** Client-only DPDP acknowledgement; gates submit, never sent to the API. */
+  consent: boolean;
 };
 
 /** Build a localized Zod schema. `t` is scoped to the `auth` namespace. */
@@ -53,6 +59,9 @@ export function buildRegistrationSchema(t: (key: string) => string) {
         .min(PASSWORD_MIN_LENGTH, t("val_password_min")),
       password_confirm: z.string().min(1, t("val_password_confirm_required")),
       preferred_language: z.enum(PREFERRED_LANGUAGES),
+      consent: z.boolean().refine((v) => v === true, {
+        message: t("val_consent_required"),
+      }),
     })
     .refine((data) => data.password === data.password_confirm, {
       path: ["password_confirm"],

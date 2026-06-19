@@ -86,7 +86,9 @@
     "val_phone_invalid": "আন্তৰ্জাতিক ফৰমেটত এটা বৈধ ফোন নম্বৰ দিয়ক, যেনে +919812345678।",
     "val_password_required": "পাছৱৰ্ড প্ৰয়োজনীয়।",
     "val_password_min": "পাছৱৰ্ড কমেও ৮টা আখৰৰ হ'ব লাগিব।",
-    "val_password_confirm_required": "অনুগ্ৰহ কৰি আপোনাৰ পাছৱৰ্ড নিশ্চিত কৰক।"
+    "val_password_confirm_required": "অনুগ্ৰহ কৰি আপোনাৰ পাছৱৰ্ড নিশ্চিত কৰক।",
+    "consent_acknowledgement": "মই <privacy>গোপনীয়তা নীতি</privacy> আৰু <terms>সেৱাৰ চৰ্তসমূহ</terms>ত সন্মত।",
+    "val_consent_required": "আগবাঢ়িবলৈ আপুনি গোপনীয়তা নীতি আৰু চৰ্তসমূহ স্বীকাৰ কৰিব লাগিব।"
   },
   "dashboard": {
     "good_morning": "সুপ্ৰভাত, {name}",
