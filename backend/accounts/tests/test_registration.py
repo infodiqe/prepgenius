@@ -9,6 +9,9 @@ from accounts.models import User, UserConsent
 pytestmark = pytest.mark.django_db
 
 
+# AUTH-HOTFIX-01: create_user now assigns the 'student' role and raises if the
+# role definition is missing, so registration tests must have roles seeded.
+@pytest.mark.usefixtures("seed_roles")
 class TestRegister:
     REGISTER_URL = "/api/v1/auth/register/"
     VALID_PAYLOAD = {

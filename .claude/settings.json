@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(docker compose exec -T django python -c \"import os,unfold; d=os.path.dirname\\(unfold.__file__\\); [print\\(os.path.join\\(r,f\\)\\) for r,_,fs in os.walk\\(d\\) for f in fs if f.endswith\\('.html'\\) and 'language_switch' in open\\(os.path.join\\(r,f\\),encoding='utf-8',errors='ignore'\\).read\\(\\)]\")",
+      "PowerShell(docker compose exec -T django python -c \"import os,unfold; d=os.path.dirname\\(unfold.__file__\\); p=os.path.join\\(d,'templates/unfold/helpers/navigation_user.html'\\); s=open\\(p,encoding='utf-8'\\).read\\(\\).splitlines\\(\\); [print\\(i+1,l.rstrip\\(\\)\\) for i,l in enumerate\\(s\\) if 'language_switch' in l or 'show_languages' in l.lower\\(\\) or 'include' in l]\")",
+      "PowerShell($env:SECRET_KEY=\"ci-test-secret-key-not-used-in-production\"; Set-Location \"D:\\\\Django Projects\\\\PrepGenius_Proj\\\\prepgenius\\\\backend\"; .\\\\.venv\\\\Scripts\\\\python.exe -m pytest questions/tests/test_payload_security.py -q -p no:warnings 2>&1 | Select-Object -Last 25)",
+      "PowerShell($env:SECRET_KEY=\"ci-test-secret-key-not-used-in-production\"; Set-Location \"D:\\\\Django Projects\\\\PrepGenius_Proj\\\\prepgenius\\\\backend\"; .\\\\.venv\\\\Scripts\\\\python.exe -m pytest questions/ attempts/ -q -p no:warnings 2>&1 | Select-Object -Last 8)",
+      "PowerShell($env:SECRET_KEY=\"ci-test\"; Set-Location \"D:\\\\Django Projects\\\\PrepGenius_Proj\\\\prepgenius\\\\backend\"; .\\\\.venv\\\\Scripts\\\\python.exe manage.py spectacular --file schema.yml 2>&1 | Select-Object -Last 4; \"=== new student components present? ===\"; Select-String -Path schema.yml -Pattern \"StudentQuestion:|QuestionOptionStudent\" | Select-Object -First 6)",
+      "Bash(git diff *)",
+      "Bash(awk '/^    StudentQuestion:/{f=1} f{print} /^    Subject\" \"|^    [A-Z].*:/{if\\(f && !/StudentQuestion/\\)exit}' schema.yml)",
+      "Bash(awk '/^    QuestionOptionStudentNested:/{f=1} f{c++} f&&c>14{exit} f{print}' schema.yml)",
+      "Bash(SECRET_KEY=x ./.venv/Scripts/python.exe manage.py spectacular)",
+      "PowerShell($env:SECRET_KEY=\"ci-test\"; Set-Location \"D:\\\\Django Projects\\\\PrepGenius_Proj\\\\prepgenius\\\\backend\"; .\\\\.venv\\\\Scripts\\\\python.exe manage.py spectacular --file schema.yml 2>&1 | Select-Object -Last 2; \"=== rerun PH-7.2 tests after docstring edit ===\"; $env:SECRET_KEY=\"ci-test-secret-key-not-used-in-production\"; .\\\\.venv\\\\Scripts\\\\python.exe -m pytest questions/tests/test_payload_security.py questions/tests/test_serializers.py -q -p no:warnings 2>&1 | Select-Object -Last 5)",
+      "PowerShell($env:SECRET_KEY=\"ci-test\"; Set-Location \"D:\\\\Django Projects\\\\PrepGenius_Proj\\\\prepgenius\\\\backend\"; .\\\\.venv\\\\Scripts\\\\python.exe manage.py makemigrations attempts --settings=config.settings.test 2>&1 | Select-Object -Last 15)",
+      "PowerShell($env:SECRET_KEY=\"ci-test-secret-key-not-used-in-production\"; Set-Location \"D:\\\\Django Projects\\\\PrepGenius_Proj\\\\prepgenius\\\\backend\"; .\\\\.venv\\\\Scripts\\\\python.exe -m pytest attempts/tests/test_services.py::TestAutoSubmitExpiredAttempts attempts/tests/test_tasks.py config/tests/test_beat_schedule.py -q -p no:warnings 2>&1 | Select-Object -Last 20)",
+      "PowerShell($env:SECRET_KEY=\"ci-test\"; Set-Location \"D:\\\\Django Projects\\\\PrepGenius_Proj\\\\prepgenius\\\\backend\"; \"=== migration drift check ===\"; echo \"\" | .\\\\.venv\\\\Scripts\\\\python.exe manage.py makemigrations --check --dry-run --settings=config.settings.test 2>&1 | Select-Object -Last 4; \"=== full attempts suite ===\"; $env:SECRET_KEY=\"ci-test-secret-key-not-used-in-production\"; .\\\\.venv\\\\Scripts\\\\python.exe -m pytest attempts/ -q -p no:warnings 2>&1 | Select-Object -Last 5)",
+      "PowerShell($env:SECRET_KEY=\"ci-test\"; Set-Location \"D:\\\\Django Projects\\\\PrepGenius_Proj\\\\prepgenius\\\\backend\"; .\\\\.venv\\\\Scripts\\\\python.exe manage.py spectacular --file schema.yml 2>&1 | Select-Object -Last 2; \"=== 423 under auth_login? ===\"; .\\\\.venv\\\\Scripts\\\\python.exe -c \"import yaml; d=yaml.safe_load\\(open\\('schema.yml'\\)\\); r=d['paths']['/api/v1/auth/login/']['post']['responses']; print\\('login responses:', list\\(r.keys\\(\\)\\)\\)\")",
+      "PowerShell($env:SECRET_KEY=\"ci-test-secret-key-not-used-in-production\"; Set-Location \"D:\\\\Django Projects\\\\PrepGenius_Proj\\\\prepgenius\\\\backend\"; .\\\\.venv\\\\Scripts\\\\python.exe -m pytest -q -p no:warnings 2>&1 | Select-Object -Last 12)",
+      "PowerShell($env:SECRET_KEY=\"ci-test\"; Set-Location \"D:\\\\Django Projects\\\\PrepGenius_Proj\\\\prepgenius\\\\backend\"; Copy-Item schema.yml schema_first.yml; .\\\\.venv\\\\Scripts\\\\python.exe manage.py spectacular --file schema.yml 2>$null; \"=== idempotent? \\(empty = in sync with code\\) ===\"; if \\(\\(Get-FileHash schema.yml\\).Hash -eq \\(Get-FileHash schema_first.yml\\).Hash\\) { \"SCHEMA STABLE: regeneration is idempotent\" } else { \"SCHEMA DRIFT between regenerations\" }; Remove-Item schema_first.yml, schema.yml.bak -ErrorAction SilentlyContinue)",
+      "PowerShell($env:SECRET_KEY=\"ci-test\"; Set-Location \"D:\\\\Django Projects\\\\PrepGenius_Proj\\\\prepgenius\\\\backend\"; \"=== drift \\(PH-3 adds no model fields\\) ===\"; echo \"\" | .\\\\.venv\\\\Scripts\\\\python.exe manage.py makemigrations --check --dry-run --settings=config.settings.test 2>&1 | Select-Object -Last 2; \"=== schema idempotent \\(no contract change\\) ===\"; Copy-Item schema.yml _s.yml; .\\\\.venv\\\\Scripts\\\\python.exe manage.py spectacular --file schema.yml 2>$null; if \\(\\(Get-FileHash schema.yml\\).Hash -eq \\(Get-FileHash _s.yml\\).Hash\\) {\"SCHEMA UNCHANGED\"} else {\"SCHEMA CHANGED\"}; Remove-Item _s.yml; \"=== questions + content_review suites ===\"; $env:SECRET_KEY=\"ci-test-secret-key-not-used-in-production\"; .\\\\.venv\\\\Scripts\\\\python.exe -m pytest questions/ content_review/ -q -p no:warnings 2>&1 | Select-Object -Last 5)",
+      "Bash(git check-ignore *)",
+      "Bash(git add *)",
+      "Bash(git reset *)",
+      "Bash(grep -E \"\\\\.claude|^\\\\.env$|reproduce|test_p0_suite|test_reproduce\")",
+      "Bash(git commit *)",
+      "Bash(ls -la frontend)",
+      "Bash(ls backend *)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(npx vitest *)",
+      "Bash(node -e \"const m=require\\('./messages/en.json'\\); console.log\\(JSON.stringify\\(m.nav,null,2\\)\\)\")",
+      "Bash(node -e \"const m=require\\('./messages/as.json'\\); console.log\\(JSON.stringify\\(m.nav,null,2\\)\\)\")",
+      "Bash(node -e \"const m=require\\('./messages/hi.json'\\); console.log\\(JSON.stringify\\(m.nav,null,2\\)\\)\")",
+      "Bash(node -e \"for\\(const f of ['as','en','hi']\\){console.log\\(f, Object.keys\\(require\\('./messages/'+f+'.json'\\)\\)\\)}\")",
+      "Bash(node -e \"for\\(const f of ['as','en','hi']\\){JSON.parse\\(require\\('fs'\\).readFileSync\\('./messages/'+f+'.json','utf8'\\)\\);console.log\\(f,'OK'\\)}\")",
+      "Bash(echo \"LINT_EXIT:$?\")",
+      "Bash(grep -nA40 -iE \"class Registration\")",
+      "Bash(grep -niA30 \"class RegisterView\\\\|class RegistrationView\" accounts/api/views.py)",
+      "Bash(grep -rniA12 \"class IsStudent|class IsAuthenticatedReadOnly\" common/permissions.py)"
+    ]
+  }
+}

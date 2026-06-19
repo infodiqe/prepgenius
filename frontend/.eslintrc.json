@@ -1,3 +1,53 @@
 {
-  "extends": "next/core-web-vitals"
+  "extends": "next/core-web-vitals",
+  "rules": {
+    "no-restricted-syntax": [
+      "error",
+      {
+        "selector": "Literal[value=/\\b(slate|gray|zinc|neutral|stone|blue|indigo)-\\d{2,3}\\b/]",
+        "message": "Use semantic theme tokens (bg-background, bg-card, bg-primary, text-foreground, text-primary, border-border, ring-ring, bg-muted, ...) instead of hardcoded Tailwind color utilities (slate/gray/zinc/neutral/stone/blue/indigo-NNN). See docs/frontend/token-migration-allowlist.md."
+      },
+      {
+        "selector": "TemplateElement[value.raw=/\\b(slate|gray|zinc|neutral|stone|blue|indigo)-\\d{2,3}\\b/]",
+        "message": "Use semantic theme tokens instead of hardcoded Tailwind color utilities (slate/gray/zinc/neutral/stone/blue/indigo-NNN). See docs/frontend/token-migration-allowlist.md."
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": [
+        "components/ui/**",
+        "features/mock-player/**",
+        "features/practice/**",
+        "features/results/**",
+        "features/analytics/**",
+        "features/dashboard/**",
+        "app/(student)/**",
+        "app/login/**",
+        "app/register/**",
+        "app/reset-password/**",
+        "app/forgot-password/**",
+        "app/verify-email/**"
+      ],
+      "rules": {
+        "no-restricted-syntax": [
+          "warn",
+          {
+            "selector": "Literal[value=/\\b(slate|gray|zinc|neutral|stone|blue|indigo)-\\d{2,3}\\b/]",
+            "message": "Legacy hardcoded color utility pending token migration — tracked in docs/frontend/token-migration-allowlist.md."
+          },
+          {
+            "selector": "TemplateElement[value.raw=/\\b(slate|gray|zinc|neutral|stone|blue|indigo)-\\d{2,3}\\b/]",
+            "message": "Legacy hardcoded color utility pending token migration — tracked in docs/frontend/token-migration-allowlist.md."
+          }
+        ]
+      }
+    },
+    {
+      "files": ["**/*.test.ts", "**/*.test.tsx"],
+      "rules": {
+        "no-restricted-syntax": "off"
+      }
+    }
+  ]
 }

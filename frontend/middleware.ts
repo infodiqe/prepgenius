@@ -8,6 +8,7 @@ const protectedPaths = [
   "/mocks",
   "/tutor",
   "/profile",
+  "/review",
   "/admin",
   "/content",
   "/contentops",

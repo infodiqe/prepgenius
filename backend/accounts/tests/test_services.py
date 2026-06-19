@@ -36,6 +36,9 @@ pytestmark = pytest.mark.django_db
 # ─── Task 5: Registration ─────────────────────────────────────────────────
 
 
+# AUTH-HOTFIX-01: create_user now assigns the 'student' role (and raises if its
+# definition is missing), so these direct-service tests must have roles seeded.
+@pytest.mark.usefixtures("seed_roles")
 class TestCreateUser:
     def test_happy_path_creates_user_consent_and_token(self):
         with patch("accounts.services.registration.send_verification_email.delay") as mock_task:

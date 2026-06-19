@@ -2,11 +2,13 @@ import secrets
 from datetime import timedelta
 
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
-from accounts.models import EmailVerificationToken, User, UserConsent
+from accounts.models import EmailVerificationToken, Role, User, UserConsent, UserRole
+from accounts.models.rbac import STUDENT
 from accounts.tasks.email_tasks import send_verification_email
 
 
@@ -34,6 +36,21 @@ def create_user(
             phone_e164=phone_e164 or None,
             status="pending",
             is_email_verified=False,
+        )
+
+        # AUTH-HOTFIX-01: every registered user is a platform-wide student.
+        # Assigned inside the same atomic block so that a missing role
+        # definition rolls the whole registration back rather than creating a
+        # role-less user that would fail IsStudent on every attempt endpoint.
+        try:
+            student_role = Role.objects.get(name=STUDENT)
+        except Role.DoesNotExist as exc:
+            raise ImproperlyConfigured(
+                "The 'student' role is not seeded. Run `manage.py seed_roles` "
+                "before registering users."
+            ) from exc
+        UserRole.objects.get_or_create(
+            user=user, role=student_role, institution_id=None
         )
 
         UserConsent.objects.create(

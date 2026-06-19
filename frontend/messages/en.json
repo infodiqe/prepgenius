@@ -10,7 +10,34 @@
     "mocks": "Mock Tests",
     "analytics": "Analytics",
     "tutor": "AI Tutor",
-    "profile": "Profile"
+    "profile": "Profile",
+    "queue": "Review Queue",
+    "sme_queue": "SME Queue",
+    "publish": "Publish",
+    "control_center": "Control Center",
+    "content": "Content",
+    "users": "Users"
+  },
+  "workspace": {
+    "label": "Workspace",
+    "student": "Student",
+    "review": "Review",
+    "admin": "Admin"
+  },
+  "toast": {
+    "close": "Close"
+  },
+  "errors": {
+    "validation": "Please check the information you entered and try again.",
+    "authentication": "Please sign in to continue.",
+    "authorization": "You don't have permission to do that.",
+    "notFound": "We couldn't find what you were looking for.",
+    "conflict": "This conflicts with existing data. Please review and try again.",
+    "lockout": "Your account is temporarily locked. Please try again later.",
+    "rateLimit": "Too many attempts. Please wait a moment and try again.",
+    "server": "Something went wrong on our end. Please try again.",
+    "network": "Connection problem. Check your internet and try again.",
+    "unknown": "Something went wrong. Please try again."
   },
   "auth": {
     "login": "Login",

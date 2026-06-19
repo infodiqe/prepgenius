@@ -16,6 +16,8 @@ import {
   Button,
 } from "@/components/ui";
 import { Globe, LogOut, User, ChevronDown } from "lucide-react";
+import { ThemeToggle } from "@/features/theme/ThemeToggle";
+import { WorkspaceSwitcher } from "@/features/workspace/WorkspaceSwitcher";
 
 export default function TopBar() {
   const { user, logout } = useAuth();
@@ -39,27 +41,35 @@ export default function TopBar() {
   };
 
   return (
-    <header className="flex h-16 w-full items-center justify-between border-b border-slate-800 bg-slate-900/20 px-6 backdrop-blur-xl">
+    <header className="flex h-16 w-full items-center justify-between border-b border-border bg-card/50 px-6 backdrop-blur-xl">
       {/* Page Title Context / Breadcrumb Placeholder */}
       <div className="flex items-center gap-4">
-        <h1 className="text-lg font-semibold text-white md:block hidden">
+        <h1 className="text-lg font-semibold text-foreground md:block hidden">
           PrepGenius AI Platform
         </h1>
         {/* Mobile brand text */}
-        <span className="text-lg font-bold text-white md:hidden block">
+        <span className="text-lg font-bold text-foreground md:hidden block">
           PrepGenius
         </span>
       </div>
 
       {/* Action Menus */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2">
+        {/* Workspace switcher (renders only for multi-workspace users) — desktop */}
+        <div className="hidden md:flex items-center">
+          <WorkspaceSwitcher />
+        </div>
+
+        {/* Theme toggle */}
+        <ThemeToggle />
+
         {/* Language Switcher Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
               size="sm"
-              className="flex items-center gap-2 text-slate-400 hover:text-slate-200 focus:ring-2 focus:ring-blue-500"
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
               aria-label="Select Language"
             >
               <Globe className="h-4 w-4" />
@@ -67,22 +77,22 @@ export default function TopBar() {
               <ChevronDown className="h-3 w-3 opacity-55" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="border-slate-800 bg-slate-950">
+          <DropdownMenuContent className="border-border bg-popover">
             <DropdownMenuItem
               onClick={() => handleLanguageChange("as")}
-              className="cursor-pointer text-sm hover:bg-slate-800"
+              className="cursor-pointer text-sm"
             >
-              অসমীয়া (Assamese)
+              অসমীয়া (Assamese)
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => handleLanguageChange("en")}
-              className="cursor-pointer text-sm hover:bg-slate-800"
+              className="cursor-pointer text-sm"
             >
               English
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => handleLanguageChange("hi")}
-              className="cursor-pointer text-sm hover:bg-slate-800"
+              className="cursor-pointer text-sm"
             >
               हिंदी (Hindi)
             </DropdownMenuItem>
@@ -93,39 +103,39 @@ export default function TopBar() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              className="flex items-center gap-2 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 p-0.5"
+              className="flex items-center gap-2 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring p-0.5"
               aria-label="User profile menu"
             >
-              <Avatar className="h-9 w-9 border border-slate-700">
-                <AvatarFallback>
+              <Avatar className="h-9 w-9 border border-border bg-muted">
+                <AvatarFallback className="bg-muted text-foreground">
                   {user ? getInitials(user.full_name) : "U"}
                 </AvatarFallback>
               </Avatar>
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56 border-slate-800 bg-slate-950" align="end">
+          <DropdownMenuContent className="w-56 border-border bg-popover" align="end">
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-semibold text-white">
+                <p className="text-sm font-semibold text-foreground">
                   {user?.full_name || "Student"}
                 </p>
-                <p className="text-xs text-slate-400 truncate">
+                <p className="text-xs text-muted-foreground truncate">
                   {user?.email || ""}
                 </p>
               </div>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator className="bg-slate-800" />
+            <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => router.push("/profile")}
-              className="cursor-pointer flex items-center gap-2 text-slate-300 hover:text-white hover:bg-slate-800"
+              className="cursor-pointer flex items-center gap-2"
             >
               <User className="h-4 w-4" />
               <span>{tNav("profile")}</span>
             </DropdownMenuItem>
-            <DropdownMenuSeparator className="bg-slate-800" />
+            <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={logout}
-              className="cursor-pointer flex items-center gap-2 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+              className="cursor-pointer flex items-center gap-2 text-destructive focus:text-destructive"
             >
               <LogOut className="h-4 w-4" />
               <span>{t("logout")}</span>
