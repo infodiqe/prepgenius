@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -23,6 +23,7 @@ import { updateProfile } from "@/features/auth/authService";
 import { useAuth } from "@/features/auth/AuthContext";
 import { toast } from "@/features/feedback/useToast";
 import { useErrorToast } from "@/features/feedback/useErrorToast";
+import { ExamPicker } from "@/features/exams/ExamPicker";
 import {
   buildOnboardingSchema,
   todayIso,
@@ -72,6 +73,7 @@ export default function OnboardingWizard({
 
   const {
     register,
+    control,
     handleSubmit,
     trigger,
     watch,
@@ -155,35 +157,25 @@ export default function OnboardingWizard({
         >
           <CardContent className="flex-1 space-y-6">
             {step === STEP_EXAM && (
-              <FormField
-                id="target_exam_id"
-                label={t("exam_label")}
-                description={t("exam_help")}
-                error={errors.target_exam_id?.message}
-                required
-              >
-                {(field) => (
-                  <select
-                    autoComplete="off"
+              <Controller
+                control={control}
+                name="target_exam_id"
+                render={({ field }) => (
+                  <ExamPicker
+                    id="target_exam_id"
+                    exams={exams}
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
                     disabled={isSubmitting}
-                    className={cn(
-                      "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-                      errors.target_exam_id && errorClass,
-                    )}
-                    {...field}
-                    {...register("target_exam_id")}
-                  >
-                    <option value="" disabled>
-                      {t("exam_placeholder")}
-                    </option>
-                    {exams.map((exam) => (
-                      <option key={exam.id} value={exam.id}>
-                        {exam.name} ({exam.code})
-                      </option>
-                    ))}
-                  </select>
+                    error={errors.target_exam_id?.message}
+                    required
+                    label={t("exam_label")}
+                    description={t("exam_help")}
+                    placeholder={t("exam_placeholder")}
+                  />
                 )}
-              </FormField>
+              />
             )}
 
             {step === STEP_DATE && (
