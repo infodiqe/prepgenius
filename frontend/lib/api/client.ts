@@ -4,6 +4,8 @@
  * schema is available from the backend (run: npm run generate-api).
  */
 
+import { ApiError } from "@/lib/errors";
+
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api/v1";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -31,8 +33,18 @@ export async function apiRequest<T>(
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: response.statusText }));
-    throw new Error(error.detail ?? "API request failed");
+    // Surface the structured error to the T02 framework: ApiError carries the
+    // HTTP status + parsed payload (DRF field errors) that normalizeError needs,
+    // while `message` (the DRF `detail`, if any) keeps legacy `e.message` callers
+    // working since ApiError extends Error.
+    const payload = await response
+      .json()
+      .catch(() => ({ detail: response.statusText }));
+    const detail =
+      payload && typeof payload === "object" && typeof payload.detail === "string"
+        ? payload.detail
+        : undefined;
+    throw new ApiError(response.status, payload, detail);
   }
 
   if (response.status === 204) return undefined as T;

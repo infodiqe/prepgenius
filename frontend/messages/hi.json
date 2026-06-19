@@ -73,7 +73,20 @@
     "success_reset_confirm": "पासवर्ड सफलतापूर्वक रीसेट कर दिया गया है। अब आप लॉग इन कर सकते हैं।",
     "confirm_password": "पासवर्ड की पुष्टि करें",
     "passwords_do_not_match": "पासवर्ड मेल नहीं खाते।",
-    "error_generic": "कुछ गलत हो गया। कृपया पुन: प्रयास करें।"
+    "error_generic": "कुछ गलत हो गया। कृपया पुन: प्रयास करें।",
+    "phone": "फ़ोन नंबर",
+    "phone_optional_hint": "वैकल्पिक",
+    "preferred_language": "पसंदीदा भाषा",
+    "creating_account": "खाता बनाया जा रहा है…",
+    "show_password": "पासवर्ड दिखाएं",
+    "hide_password": "पासवर्ड छिपाएं",
+    "val_name_required": "पूरा नाम आवश्यक है।",
+    "val_email_required": "ईमेल आवश्यक है।",
+    "val_email_invalid": "एक मान्य ईमेल पता दर्ज करें।",
+    "val_phone_invalid": "अंतर्राष्ट्रीय प्रारूप में एक मान्य फ़ोन नंबर दर्ज करें, जैसे +919812345678।",
+    "val_password_required": "पासवर्ड आवश्यक है।",
+    "val_password_min": "पासवर्ड कम से कम 8 अक्षरों का होना चाहिए।",
+    "val_password_confirm_required": "कृपया अपने पासवर्ड की पुष्टि करें।"
   },
   "dashboard": {
     "good_morning": "शुभप्रभात, {name}",

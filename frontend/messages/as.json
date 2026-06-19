@@ -73,7 +73,20 @@
     "success_reset_confirm": "পাছৱৰ্ড সফলভাৱে পুনৰুদ্ধাৰ কৰা হৈছে। আপুনি এতিয়া প্ৰৱেশ কৰিব পাৰে।",
     "confirm_password": "পাছৱৰ্ড নিশ্চিত কৰক",
     "passwords_do_not_match": "পাছৱৰ্ড দুটা মিলা নাই।",
-    "error_generic": "কিবা ভুল হৈছে। অনুগ্ৰহ কৰি পুনৰ চেষ্টা কৰক।"
+    "error_generic": "কিবা ভুল হৈছে। অনুগ্ৰহ কৰি পুনৰ চেষ্টা কৰক।",
+    "phone": "ফোন নম্বৰ",
+    "phone_optional_hint": "ঐচ্ছিক",
+    "preferred_language": "পচন্দৰ ভাষা",
+    "creating_account": "একাউণ্ট সৃষ্টি কৰি থকা হৈছে…",
+    "show_password": "পাছৱৰ্ড দেখুৱাওক",
+    "hide_password": "পাছৱৰ্ড লুকুৱাওক",
+    "val_name_required": "সম্পূৰ্ণ নাম প্ৰয়োজনীয়।",
+    "val_email_required": "ইমেইল প্ৰয়োজনীয়।",
+    "val_email_invalid": "এটা বৈধ ইমেইল ঠিকনা দিয়ক।",
+    "val_phone_invalid": "আন্তৰ্জাতিক ফৰমেটত এটা বৈধ ফোন নম্বৰ দিয়ক, যেনে +919812345678।",
+    "val_password_required": "পাছৱৰ্ড প্ৰয়োজনীয়।",
+    "val_password_min": "পাছৱৰ্ড কমেও ৮টা আখৰৰ হ'ব লাগিব।",
+    "val_password_confirm_required": "অনুগ্ৰহ কৰি আপোনাৰ পাছৱৰ্ড নিশ্চিত কৰক।"
   },
   "dashboard": {
     "good_morning": "সুপ্ৰভাত, {name}",
