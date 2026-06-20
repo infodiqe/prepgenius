@@ -31,6 +31,7 @@ describe("PUBLIC_PAGE_META", () => {
       "privacy",
       "terms",
       "pricing",
+      "waitlist",
     ] as const) {
       const m = PUBLIC_PAGE_META[key];
       expect(m.title.length).toBeGreaterThan(0);

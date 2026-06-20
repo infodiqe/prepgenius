@@ -46,6 +46,7 @@ export const PUBLIC_ROUTES = [
   "/login",
   "/register",
   "/pricing",
+  "/waitlist",
   "/about",
   "/contact",
   "/privacy",
@@ -121,7 +122,7 @@ export function pageMetadata({
 // SEO copy for the public informational pages (T37). Kept here so metadata
 // never lives inside components and stays unit-testable.
 export const PUBLIC_PAGE_META: Record<
-  "about" | "contact" | "privacy" | "terms" | "pricing",
+  "about" | "contact" | "privacy" | "terms" | "pricing" | "waitlist",
   PublicPageMeta
 > = {
   pricing: {
@@ -129,6 +130,12 @@ export const PUBLIC_PAGE_META: Record<
     description:
       "PrepGenius pricing — start free with full practice, dashboards, and readiness tracking. AI-powered premium and institute plans coming soon.",
     path: "/pricing",
+  },
+  waitlist: {
+    title: "Join the Waitlist",
+    description:
+      "Join the PrepGenius waitlist for early access to AI-powered exam preparation, launch updates, and priority institute onboarding.",
+    path: "/waitlist",
   },
   about: {
     title: "About Us",
