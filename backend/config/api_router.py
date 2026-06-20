@@ -12,5 +12,6 @@ urlpatterns: list = [
     # path("notifications/", include("notifications.api.urls")),
     # path("institutions/", include("institutions.api.urls")),
     path("", include("content_review.api.urls")),
+    path("cms/", include("cms.api.urls")),
 ]
 

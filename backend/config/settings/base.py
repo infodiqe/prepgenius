@@ -57,6 +57,7 @@ LOCAL_APPS = [
     "notifications.apps.NotificationsConfig",
     "institutions.apps.InstitutionsConfig",
     "content_review.apps.ContentReviewConfig",
+    "cms.apps.CmsConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

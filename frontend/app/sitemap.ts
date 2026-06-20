@@ -1,12 +1,25 @@
 import type { MetadataRoute } from "next";
 import { PUBLIC_ROUTES, SITE_URL } from "@/lib/seo/config";
+import { fetchPublishedCmsPages } from "@/lib/cms/api";
 
-// Sitemap of public routes only (T36 PART 4). Authenticated routes are
-// intentionally excluded and are also disallowed in robots.ts.
-export default function sitemap(): MetadataRoute.Sitemap {
-  return PUBLIC_ROUTES.map((route) => ({
+// Sitemap of public routes (T36 PART 4) plus published CMS pages (T41).
+// Authenticated routes are excluded and disallowed in robots.ts.
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const staticEntries: MetadataRoute.Sitemap = PUBLIC_ROUTES.map((route) => ({
     url: `${SITE_URL}${route === "/" ? "" : route}`,
     changeFrequency: "weekly",
     priority: route === "/" ? 1 : 0.8,
   }));
+
+  // Published CMS pages. The route /content/<slug> is locale-agnostic, so we
+  // de-duplicate slugs across locales. Failures degrade to static routes only.
+  const cmsPages = await fetchPublishedCmsPages();
+  const uniqueSlugs = [...new Set(cmsPages.map((page) => page.slug))];
+  const cmsEntries: MetadataRoute.Sitemap = uniqueSlugs.map((slug) => ({
+    url: `${SITE_URL}/content/${slug}`,
+    changeFrequency: "weekly",
+    priority: 0.6,
+  }));
+
+  return [...staticEntries, ...cmsEntries];
 }
