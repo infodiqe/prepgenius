@@ -10,6 +10,7 @@ from attempts.api.views import (
     MockTestList,
     MockTestQuestionDetail,
     MockTestQuestionList,
+    PracticeAttemptCreate,
     UserAnswerBulkSave,
     UserAnswerList,
     UserAnswerSave,
@@ -39,6 +40,11 @@ urlpatterns = [
     ),
     # Attempts
     path("attempts/", AttemptList.as_view(), name="attempt-list"),
+    path(
+        "attempts/practice/",
+        PracticeAttemptCreate.as_view(),
+        name="practice-attempt-create",
+    ),
     path(
         "attempts/<uuid:pk>/",
         AttemptDetail.as_view(),

@@ -72,3 +72,34 @@ export async function updateProfile(data: UpdateProfileRequest) {
     body: data,
   });
 }
+
+// ── T29: profile completion (reuses existing backend endpoints) ─────────────
+
+export interface ChangePasswordRequest {
+  current_password: string;
+  new_password: string;
+  new_password_confirm: string;
+}
+
+// /auth/password/change/ is not in the generated client yet; typed inline.
+export async function changePassword(data: ChangePasswordRequest) {
+  return apiRequest<{ detail: string }>("/auth/password/change/", {
+    method: "POST",
+    body: data,
+  });
+}
+
+// POST /auth/data/export/ → 202; backend queues the export and emails the user.
+export async function exportData() {
+  return apiRequest<{ detail: string }>("/auth/data/export/", {
+    method: "POST",
+  });
+}
+
+// DELETE /auth/account/delete/ — anonymizes the account and clears auth cookies.
+export async function deleteAccount(data: { password: string }) {
+  return apiRequest<{ detail: string }>("/auth/account/delete/", {
+    method: "DELETE",
+    body: data,
+  });
+}

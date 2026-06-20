@@ -1,24 +1,16 @@
-"use client";
+import { TutorChatPanel } from "@/features/tutor/components/TutorChatPanel";
 
-import React from "react";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui";
-
-export default function TutorPlaceholder() {
+/*
+ * AI Tutor route — Sprint 4 · T30A (frontend-only shell).
+ *
+ * Thin shell under the (student) group (RoleGuard + OnboardingGuard + AppShell
+ * applied by the layout). Renders the TutorChatPanel coming-soon experience.
+ * No backend wiring — Sprint 5 will integrate the AI Tutor via ai_gateway.
+ */
+export default function TutorPage() {
   return (
-    <div className="space-y-6">
-      <h2 className="text-3xl font-bold tracking-tight text-white">AI Tutor Assistant</h2>
-      
-      <Card className="border-slate-800 bg-slate-900/60 shadow-xl backdrop-blur-xl">
-        <CardHeader>
-          <CardTitle className="text-xl text-white">PrepGenius AI Copilot</CardTitle>
-          <CardDescription className="text-slate-400">
-            This is a placeholder for your real-time conversational AI tutor.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="text-sm text-slate-300">
-          Chat interfaces, question explanations, and concept clarity features will be rendered here.
-        </CardContent>
-      </Card>
+    <div className="container mx-auto px-4 py-8">
+      <TutorChatPanel contextType="general" />
     </div>
   );
 }

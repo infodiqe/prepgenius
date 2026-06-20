@@ -1,5 +1,6 @@
 import datetime
 import logging
+from collections import OrderedDict
 from decimal import Decimal
 from uuid import UUID
 
@@ -8,7 +9,12 @@ from django.core.cache import cache
 from django.db.models import Avg, Count, Max, Q, Sum
 from django.utils import timezone
 
-from analytics.models import AttemptSectionAnalytics, UserTopicPerformance, WeakTopic
+from analytics.models import (
+    AttemptSectionAnalytics,
+    ExamReadinessScore,
+    UserTopicPerformance,
+    WeakTopic,
+)
 from attempts.models import ExamAttempt, UserAnswer
 from exams.models import Subject, Topic
 
@@ -102,6 +108,120 @@ def get_user_topic_performance(*, user_id: UUID, exam_id: UUID) -> list[dict]:
             "last_practiced_at": p.last_practiced_at,
         })
     return results
+
+
+# Window caps keep trend payloads bounded (T24).
+SECTION_TREND_WINDOW = 20
+READINESS_TREND_WINDOW = 50
+
+
+def get_attempt_trend(*, user_id: UUID, exam_id: UUID) -> list[dict]:
+    """Chronological scored-attempt history for a user+exam (T24)."""
+    attempts = (
+        ExamAttempt.objects.filter(
+            user_id=user_id, exam_id=exam_id, status="scored"
+        )
+        .only("id", "created_at", "score", "max_score", "accuracy")
+        .order_by("created_at")
+    )
+    return [
+        {
+            "attempt_id": a.id,
+            "created_at": a.created_at,
+            "score": a.score,
+            "max_score": a.max_score,
+            "accuracy": a.accuracy,
+        }
+        for a in attempts
+    ]
+
+
+def get_section_trend(
+    *,
+    user_id: UUID,
+    exam_id: UUID,
+    scope_type: str,
+    window: int = SECTION_TREND_WINDOW,
+) -> list[dict]:
+    """Per-section accuracy history grouped by scope (T24).
+
+    Derived from AttemptSectionAnalytics joined to the owning attempt's
+    timestamp. Bounded to the most recent `window` scored attempts. No N+1:
+    one query for the recent attempt ids, one joined query (select_related the
+    attempt) for the section rows, and one bulk name lookup.
+    """
+    recent_ids = list(
+        ExamAttempt.objects.filter(
+            user_id=user_id, exam_id=exam_id, status="scored"
+        )
+        .order_by("-created_at")
+        .values_list("id", flat=True)[:window]
+    )
+    if not recent_ids:
+        return []
+
+    rows = (
+        AttemptSectionAnalytics.objects.filter(
+            attempt_id__in=recent_ids, scope_type=scope_type
+        )
+        .select_related("attempt")
+        .order_by("attempt__created_at")
+    )
+
+    scope_ids = {r.scope_id for r in rows}
+    if scope_type == "subject":
+        names = {s.id: s.name for s in Subject.objects.filter(id__in=scope_ids)}
+    else:
+        names = {t.id: t.name for t in Topic.objects.filter(id__in=scope_ids)}
+
+    grouped: "OrderedDict[UUID, dict]" = OrderedDict()
+    for r in rows:
+        group = grouped.get(r.scope_id)
+        if group is None:
+            group = {
+                "scope_id": r.scope_id,
+                "scope_name": names.get(r.scope_id, "Unknown"),
+                "history": [],
+            }
+            grouped[r.scope_id] = group
+        group["history"].append(
+            {
+                "attempt_id": r.attempt_id,
+                "created_at": r.attempt.created_at,
+                "accuracy": r.accuracy,
+            }
+        )
+    return list(grouped.values())
+
+
+def get_readiness_trend(
+    *, user_id: UUID, exam_id: UUID, window: int = READINESS_TREND_WINDOW
+) -> list[dict]:
+    """Chronological readiness timeline for a user+exam (T24), most recent
+    `window` rows, returned oldest → newest."""
+    rows = list(
+        ExamReadinessScore.objects.filter(user_id=user_id, exam_id=exam_id)
+        .order_by("-computed_at")[:window]
+    )
+    rows.reverse()
+    return [
+        {
+            "score": r.score,
+            "band": (r.components or {}).get("band"),
+            "computed_at": r.computed_at,
+            "components": r.components or {},
+        }
+        for r in rows
+    ]
+
+
+def get_latest_readiness(*, user_id: UUID, exam_id: UUID) -> ExamReadinessScore | None:
+    """Returns the most recent ExamReadinessScore for a user+exam, or None."""
+    return (
+        ExamReadinessScore.objects.filter(user_id=user_id, exam_id=exam_id)
+        .order_by("-computed_at")
+        .first()
+    )
 
 
 def get_active_weak_topics(*, user_id: UUID, exam_id: UUID) -> list[dict]:

@@ -72,6 +72,20 @@ def update_analytics_rollups(self, attempt_id: str) -> None:
                 topic_ids=topic_ids,
             )
 
+        # 2b. Recompute exam readiness (T22). Runs after weak-topic evaluation so
+        # the severity-3 gate sees fresh state. Isolated so a readiness failure
+        # never breaks the rollup.
+        try:
+            from analytics.services.readiness_services import compute_exam_readiness
+
+            compute_exam_readiness(
+                user_id=attempt.user_id, exam_id=attempt.exam_id
+            )
+        except Exception:
+            logger.exception(
+                "Readiness computation failed for attempt %s", attempt_id
+            )
+
         # 3. Recalculate question stats via questions app service (fully decoupled)
         for question_id in question_ids:
             recalculate_question_stats(question_id=question_id)

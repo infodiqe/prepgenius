@@ -52,11 +52,11 @@ EXAM_DATA = {
     "analytics_rules": {
         "weak_topic_threshold": 60,
         "readiness_score_weights": {
-            "mock_performance": 40,
+            "mock_performance": 50,
             "subject_accuracy": 25,
             "topic_accuracy": 15,
-            "consistency": 10,
-            "practice_completion": 10,
+            "consistency": 5,
+            "practice_completion": 5,
         },
     },
     "audience_is_minor": False,

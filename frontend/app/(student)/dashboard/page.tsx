@@ -101,24 +101,6 @@ async function DashboardContent() {
         )}
       </div>
 
-      {/* Onboarding: no exam selected */}
-      {!user.target_exam_id && (
-        <Card className="border-amber-500/20 bg-amber-500/5 p-6 shadow-xl backdrop-blur-xl">
-          <CardHeader className="p-0 space-y-1">
-            <CardTitle className="text-xl font-bold text-amber-400">{t("onboarding_title")}</CardTitle>
-            <CardDescription className="text-slate-400 text-sm">
-              {t("onboarding_subtitle")}
-            </CardDescription>
-          </CardHeader>
-          <div className="mt-4">
-            {/* Profile page will expose exam selection when built */}
-            <Button asChild className="bg-amber-600 hover:bg-amber-500 font-semibold text-white">
-              <Link href="/profile">{t("onboarding_cta")}</Link>
-            </Button>
-          </div>
-        </Card>
-      )}
-
       {user.target_exam_id && (
         <>
           {/* ── T13 / SPR1-HOTFIX-02: First diagnostic entry — only before any

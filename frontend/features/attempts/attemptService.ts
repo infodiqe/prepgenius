@@ -54,3 +54,24 @@ export async function createAttempt(data: paths["/api/v1/attempts/attempts/"]["p
     }
   );
 }
+
+// T28 — server-authoritative practice. Topic/Subject/Mixed practice creates a
+// custom MockTest server-side and returns a normal attempt (same response shape
+// as createAttempt). Endpoint not yet in the generated client; typed inline.
+export type PracticeScopeType = "topic" | "subject" | "mixed";
+
+export interface CreatePracticeAttemptRequest {
+  exam_id: string;
+  scope_type: PracticeScopeType;
+  scope_id?: string | null;
+}
+
+export async function createPracticeAttempt(data: CreatePracticeAttemptRequest) {
+  return apiRequest<paths["/api/v1/attempts/attempts/"]["post"]["responses"]["201"]["content"]["application/json"]>(
+    "/attempts/practice/",
+    {
+      method: "POST",
+      body: data,
+    }
+  );
+}

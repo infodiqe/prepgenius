@@ -75,3 +75,26 @@ class DuplicateAnswerError(AttemptDomainError):
             f"Answer already exists for question {question_id} "
             f"in attempt {attempt_id}"
         )
+
+
+class InvalidPracticeScopeError(AttemptDomainError):
+    """Raised for an unknown scope_type or a missing scope_id (topic/subject)."""
+
+    def __init__(self, scope_type: str, reason: str | None = None) -> None:
+        self.scope_type = scope_type
+        message = f"Invalid practice scope: {scope_type}"
+        if reason:
+            message += f" ({reason})"
+        super().__init__(message)
+
+
+class NoPracticeQuestionsError(AttemptDomainError):
+    """Raised when no published questions exist for the requested scope."""
+
+    def __init__(self, scope_type: str, scope_id: str | None = None) -> None:
+        self.scope_type = scope_type
+        self.scope_id = scope_id
+        super().__init__(
+            f"No published questions available for {scope_type} practice "
+            f"(scope_id={scope_id})"
+        )

@@ -50,10 +50,12 @@ from attempts.services.attempt_services import (
     submit_attempt,
     update_mock_test,
 )
+from attempts.services.practice_services import create_practice_attempt
 
 from .serializers import (
     ExamAttemptCreateSerializer,
     ExamAttemptReadSerializer,
+    PracticeAttemptCreateSerializer,
     MockTestCreateSerializer,
     MockTestQuestionCreateSerializer,
     MockTestQuestionReadSerializer,
@@ -350,6 +352,40 @@ class AttemptList(AttemptBaseView):
         serializer = ExamAttemptCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         attempt = create_attempt(
+            user_id=request.user.id,
+            **serializer.validated_data,
+        )
+        return Response(
+            ExamAttemptReadSerializer(attempt).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+@extend_schema_view(
+    post=extend_schema(
+        summary="Create practice attempt",
+        description=(
+            "Create a Topic/Subject/Mixed practice attempt. The server selects "
+            "published questions for the scope, generates a custom mock test, "
+            "and returns an attempt that reuses the full player/scoring/"
+            "analytics pipeline."
+        ),
+        request=PracticeAttemptCreateSerializer,
+        responses={
+            201: ExamAttemptReadSerializer,
+            400: OpenApiResponse(description="Validation error / no questions"),
+            401: OpenApiResponse(description="Not authenticated"),
+            403: OpenApiResponse(description="Permission denied"),
+        },
+    ),
+)
+class PracticeAttemptCreate(AttemptBaseView):
+    permission_classes = [IsStudent]
+
+    def post(self, request):
+        serializer = PracticeAttemptCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        attempt = create_practice_attempt(
             user_id=request.user.id,
             **serializer.validated_data,
         )

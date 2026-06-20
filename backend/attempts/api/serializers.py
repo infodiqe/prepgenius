@@ -198,6 +198,21 @@ class ExamAttemptCreateSerializer(serializers.ModelSerializer):
         ]
 
 
+class PracticeAttemptCreateSerializer(serializers.Serializer):
+    """Request for a Topic/Subject/Mixed practice attempt (T28)."""
+
+    exam_id = serializers.UUIDField(help_text="ID of the exam to practice")
+    scope_type = serializers.ChoiceField(
+        choices=["topic", "subject", "mixed"],
+        help_text="Practice scope: topic, subject, or mixed",
+    )
+    scope_id = serializers.UUIDField(
+        required=False,
+        allow_null=True,
+        help_text="Topic/Subject UUID for topic/subject scope; null for mixed",
+    )
+
+
 # ── UserAnswer ────────────────────────────────────────────────────────────
 
 

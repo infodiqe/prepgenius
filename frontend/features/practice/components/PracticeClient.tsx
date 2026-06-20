@@ -3,7 +3,12 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { createAttempt } from "@/features/attempts/attemptService";
+import {
+  createAttempt,
+  createPracticeAttempt,
+  type PracticeScopeType,
+} from "@/features/attempts/attemptService";
+import { useErrorToast } from "@/features/feedback/useErrorToast";
 import ExamSelector from "./ExamSelector";
 import ResumeAttemptCard from "./ResumeAttemptCard";
 import PracticeModeTabs from "./PracticeModeTabs";
@@ -51,6 +56,7 @@ export default function PracticeClient({
 }: PracticeClientProps) {
   const t = useTranslations("practice");
   const router = useRouter();
+  const notifyError = useErrorToast();
 
   // Find latest active attempt (created or in_progress status)
   const activeAttempt = attempts
@@ -92,29 +98,36 @@ export default function PracticeClient({
     setIsLaunching(true);
 
     try {
-      // API call to create attempt using frozen backend request schema
-      const response = await createAttempt({
-        exam_id: selectedExamId,
-        attempt_type: launchParams.type,
-        mock_test_id: (launchParams.type === "full_mock" || launchParams.type === "previous_year") ? launchParams.id : null,
-        duration_seconds: launchParams.durationSeconds,
-      });
+      // T28: Topic/Subject/Mixed practice uses the server-authoritative practice
+      // endpoint (generates a custom MockTest). Full mock / previous-year keep
+      // the existing create-attempt path unchanged.
+      const isPractice =
+        launchParams.type === "topic" ||
+        launchParams.type === "subject" ||
+        launchParams.type === "mixed";
+
+      const response = isPractice
+        ? await createPracticeAttempt({
+            exam_id: selectedExamId,
+            scope_type: launchParams.type as PracticeScopeType,
+            scope_id: launchParams.id ?? null,
+          })
+        : await createAttempt({
+            exam_id: selectedExamId,
+            attempt_type: launchParams.type,
+            mock_test_id: launchParams.id ?? null,
+            duration_seconds: launchParams.durationSeconds,
+          });
 
       if (response && response.id) {
-        // Close modal
         setRulesOpen(false);
-
-        // Redirect based on type
-        if (launchParams.type === "topic" && launchParams.id) {
-          router.push(`/practice/${response.id}?topic_id=${launchParams.id}`);
-        } else if (launchParams.type === "subject" && launchParams.id) {
-          router.push(`/practice/${response.id}?subject_id=${launchParams.id}`);
-        } else {
-          router.push(`/practice/${response.id}`);
-        }
+        // The attempt now always carries a mock_test_id (practice or mock), so
+        // the player resolves the question set server-side — no scope query
+        // params needed.
+        router.push(`/practice/${response.id}`);
       }
     } catch (err) {
-      console.error("Failed to launch attempt:", err);
+      notifyError(err);
     } finally {
       setIsLaunching(false);
     }
