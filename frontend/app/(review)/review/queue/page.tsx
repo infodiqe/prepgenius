@@ -1,17 +1,11 @@
-import React from 'react';
+import { ReviewQueuePage } from "@/features/review/ReviewQueuePage";
 
-/**
- * Placeholder scaffold for the Review workspace (S0-T12).
- * The real review queue is built in a later sprint (S2). This stub only proves
- * the guarded route group resolves and renders inside AppShell.
+/*
+ * Review queue route (T31). Guarded by the (review) layout's RoleGuard
+ * (content_reviewer / sme / content_manager / platform_admin). The client
+ * ReviewQueuePage owns its loading/empty/error states and consumes existing
+ * content-review APIs only.
  */
-export default function ReviewQueuePlaceholder() {
-  return (
-    <div className="space-y-2">
-      <h2 className="text-2xl font-bold text-foreground">Review workspace</h2>
-      <p className="text-muted-foreground">
-        Review screens are coming in a later sprint.
-      </p>
-    </div>
-  );
+export default function ReviewQueueRoute() {
+  return <ReviewQueuePage />;
 }

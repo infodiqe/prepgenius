@@ -14,10 +14,17 @@ def request_data_export(*, user: User) -> None:
     export_user_data_async.delay(str(user.id))
 
 
-def delete_account(*, user: User, password: str) -> None:
-    if not user.check_password(password):
-        raise ValidationError("Incorrect password")
+def anonymize_user(*, user: User) -> None:
+    """DPDP-compliant anonymization: scrub PII, tombstone, and revoke sessions.
 
+    Soft-delete only — the row is preserved (status="deleted", is_active=False,
+    deleted_at set) so audit/history references to the user remain intact, while
+    personal data is overwritten. This is the single source of anonymization
+    logic, shared by the self-service ``delete_account`` flow and the admin
+    "Anonymize and Deactivate" action (ADMIN-HARDEN-02 / P0). It performs no
+    authorization or password check — callers are responsible for authorizing
+    the operation.
+    """
     now = timezone.now()
 
     with transaction.atomic():
@@ -46,4 +53,11 @@ def delete_account(*, user: User, password: str) -> None:
         for token in outstanding:
             BlacklistedToken.objects.get_or_create(token=token)
 
-    logger.info("Account deleted: user=%s deleted_at=%s", user.id, now)
+    logger.info("Account anonymized: user=%s deleted_at=%s", user.id, now)
+
+
+def delete_account(*, user: User, password: str) -> None:
+    if not user.check_password(password):
+        raise ValidationError("Incorrect password")
+
+    anonymize_user(user=user)

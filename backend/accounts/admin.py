@@ -1,8 +1,10 @@
 ﻿from django import forms
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.password_validation import validate_password
 from django.utils.translation import gettext_lazy as _
+
+from accounts.services.dpdp_service import anonymize_user
 
 from .models import (
     EmailVerificationToken,
@@ -94,9 +96,52 @@ class UserAdmin(BaseUserAdmin):
     search_fields = ("email", "full_name", "phone_e164")
     readonly_fields = ("id", "created_at", "updated_at", "deleted_at", "last_login")
     ordering = ("-created_at",)
+    actions = ("anonymize_and_deactivate",)
 
     # ── Custom creation form adds email + full_name ───────────────────────────
     add_form = AdminUserCreationForm
+
+    # ── DPDP compliance: no hard delete from the admin ────────────────────────
+    def has_delete_permission(self, request, obj=None) -> bool:
+        """Hard delete is disabled (PRD §22 / ADMIN-HARDEN-02 / P0).
+
+        Hard-deleting a user would destroy PII that DPDP requires us to
+        anonymize-and-retain and could cascade into audit/history rows. Operators
+        must use the "Anonymize and Deactivate" action instead, which soft-deletes
+        via the shared DPDP service.
+        """
+        return False
+
+    @admin.action(description=_("Anonymize and Deactivate (DPDP)"))
+    def anonymize_and_deactivate(self, request, queryset) -> None:
+        """Soft-delete selected users via the shared DPDP anonymization service.
+
+        Anonymizes PII, sets status="deleted" + deleted_at, deactivates the
+        account, and revokes sessions — while preserving the user row (and the
+        audit/history that references it). Already-deleted users are skipped.
+        """
+        anonymized = 0
+        skipped = 0
+        for user in queryset:
+            if user.status == "deleted":
+                skipped += 1
+                continue
+            anonymize_user(user=user)
+            anonymized += 1
+
+        if anonymized:
+            self.message_user(
+                request,
+                _("%(n)d user(s) anonymized and deactivated.")
+                % {"n": anonymized},
+                level=messages.SUCCESS,
+            )
+        if skipped:
+            self.message_user(
+                request,
+                _("%(n)d already-deleted user(s) skipped.") % {"n": skipped},
+                level=messages.WARNING,
+            )
 
     fieldsets = (
         (None, {"fields": ("email", "full_name", "phone_e164", "status")}),

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { siteMetadata } from "@/lib/seo/config";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { Inter, Noto_Sans_Bengali, Noto_Sans_Devanagari } from "next/font/google";
@@ -28,10 +29,10 @@ const devanagari = Noto_Sans_Devanagari({
   variable: "--font-devanagari",
 });
 
-export const metadata: Metadata = {
-  title: "PrepGenius AI",
-  description: "Personalized Learning & Assessment Platform for Regional Competitive Exams",
-};
+// Root metadata (title template, description, keywords, OpenGraph, Twitter,
+// canonical base). Defined in lib/seo/config so it stays out of components and
+// is unit-testable. See T36.
+export const metadata: Metadata = siteMetadata;
 
 export default async function RootLayout({
   children,
