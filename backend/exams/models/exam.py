@@ -12,6 +12,11 @@ class Exam(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     code = models.CharField(max_length=40, unique=True)
     name = models.CharField(max_length=150)
+    # Public landing page fields (T42). A null slug means "no public page".
+    slug = models.SlugField(max_length=160, unique=True, null=True, blank=True)
+    description = models.TextField(blank=True, default="")
+    target_audience = models.CharField(max_length=255, blank=True, default="")
+    exam_date = models.DateField(null=True, blank=True)
     exam_type = models.CharField(
         max_length=20,
         choices=[

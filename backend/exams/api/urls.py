@@ -10,6 +10,10 @@ from exams.api.views import (
     ExamTree,
     PaperDetail,
     PaperList,
+    PublicExamDetail,
+    PublicExamList,
+    PublicExamPreviousYearPapers,
+    PublicExamSyllabus,
     SubjectCreate,
     SubjectDetail,
     SubjectTopicList,
@@ -25,6 +29,28 @@ from exams.api.views import (
 app_name = "exams"
 
 urlpatterns = [
+    # Public exam landing pages (T42) — literal "public" segment, declared
+    # before the <uuid:pk> detail route.
+    path(
+        "exams/public/",
+        PublicExamList.as_view(),
+        name="public-exam-list",
+    ),
+    path(
+        "exams/public/<slug:slug>/",
+        PublicExamDetail.as_view(),
+        name="public-exam-detail",
+    ),
+    path(
+        "exams/public/<slug:slug>/syllabus/",
+        PublicExamSyllabus.as_view(),
+        name="public-exam-syllabus",
+    ),
+    path(
+        "exams/public/<slug:slug>/previous-year-papers/",
+        PublicExamPreviousYearPapers.as_view(),
+        name="public-exam-previous-year-papers",
+    ),
     # Exams
     path("exams/", ExamList.as_view(), name="exam-list"),
     path("exams/<uuid:pk>/", ExamDetail.as_view(), name="exam-detail"),

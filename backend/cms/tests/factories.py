@@ -21,6 +21,13 @@ class DraftCMSPageFactory(CMSPageFactory):
     status = "draft"
 
 
+class CMSGuideFactory(CMSPageFactory):
+    """A published study-guide page (T45)."""
+
+    page_type = "guide"
+    category = "CTET"
+
+
 class CMSBlockFactory(DjangoModelFactory):
     class Meta:
         model = CMSBlock

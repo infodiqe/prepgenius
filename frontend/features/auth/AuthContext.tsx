@@ -11,7 +11,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   logout: () => Promise<void>;
-  refreshProfile: () => Promise<void>;
+  refreshProfile: () => Promise<UserProfile | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,13 +26,15 @@ export function AuthProvider({
   const [user, setUser] = useState<UserProfile | null>(initialUser);
   const [isLoading, setIsLoading] = useState(!initialUser);
 
-  const refreshProfile = async () => {
+  const refreshProfile = async (): Promise<UserProfile | null> => {
     try {
       setIsLoading(true);
       const profile = await getProfile();
       setUser(profile);
+      return profile;
     } catch (error) {
       setUser(null);
+      return null;
     } finally {
       setIsLoading(false);
     }

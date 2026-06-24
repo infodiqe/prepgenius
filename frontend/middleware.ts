@@ -9,6 +9,7 @@ const protectedPaths = [
   "/tutor",
   "/profile",
   "/review",
+  "/ops",
   "/admin",
   "/content",
   "/contentops",

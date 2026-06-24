@@ -37,3 +37,42 @@ class CMSPageListSerializer(serializers.ModelSerializer):
         model = CMSPage
         fields = ["slug", "locale", "updated_at"]
         read_only_fields = fields
+
+
+class CMSGuideCardSerializer(serializers.ModelSerializer):
+    """Card payload for the guide index and related-guides lists (T45)."""
+
+    class Meta:
+        model = CMSPage
+        fields = ["slug", "title", "meta_description", "category"]
+        read_only_fields = fields
+
+
+class CMSGuideDetailSerializer(serializers.ModelSerializer):
+    """Full guide payload: ordered blocks plus simple related guides (T45).
+
+    `related` is supplied via serializer context (computed in the view selector)
+    so the serializer stays free of query logic.
+    """
+
+    blocks = CMSBlockSerializer(many=True, read_only=True)
+    related = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CMSPage
+        fields = [
+            "slug",
+            "title",
+            "meta_title",
+            "meta_description",
+            "category",
+            "locale",
+            "published_at",
+            "blocks",
+            "related",
+        ]
+        read_only_fields = fields
+
+    def get_related(self, obj) -> list:
+        related = self.context.get("related", [])
+        return CMSGuideCardSerializer(related, many=True).data

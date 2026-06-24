@@ -4,15 +4,15 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button, Input, Label, Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui";
-import { login, getProfile } from "@/features/auth/authService";
+import { login } from "@/features/auth/authService";
+import { useAuth } from "@/features/auth/AuthContext";
+import { hasOpsAccess } from "@/features/ops/opsAccess";
 import { Eye, EyeOff, Globe } from "lucide-react";
-
-// Roles that should land on the Django Admin instead of the student dashboard.
-const ADMIN_ROLES = ["platform_admin", "content_manager"];
 
 export default function LoginPage() {
   const t = useTranslations("auth");
   const router = useRouter();
+  const { refreshProfile } = useAuth();
   
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -35,29 +35,30 @@ export default function LoginPage() {
 
     try {
       await login({ email, password });
+
+      // Hydrate the client auth context from the now-authenticated session.
+      // This both fetches the profile (for role-based routing) AND populates
+      // AuthContext.user, so the route guards on the destination see the
+      // authenticated user immediately — without this, the guards read a stale
+      // null user and bounce back to /login (the "login twice" defect).
+      const profile = await refreshProfile();
       setSuccess(t("success_login"));
 
       // Decide destination from the user's roles (server-authoritative).
-      // Admins go to Django Admin; everyone else to the student dashboard.
-      let destination = "/dashboard";
-      try {
-        const profile = await getProfile();
-        const roles = profile.roles ?? [];
-        if (roles.some((role) => ADMIN_ROLES.includes(role))) {
-          destination = "/admin/";
-        }
-      } catch {
-        // If the profile lookup fails, fall back to the dashboard.
-      }
+      // Operational users (admin / content manager / reviewer / SME / institution
+      // admin) start in the Operations Platform — a JWT-authenticated Next route,
+      // so no second login. Django Admin (/admin/, Django session auth) is a
+      // maintenance escape-hatch only and is never a login destination.
+      // Everyone else goes to the student dashboard (OnboardingGuard handles the
+      // onboarding step for students who have not chosen a target exam yet).
+      const roles = profile?.roles ?? [];
+      const destination = hasOpsAccess(roles) ? "/ops" : "/dashboard";
 
       setTimeout(() => {
-        if (destination.startsWith("/admin")) {
-          // Django Admin is server-rendered (outside Next.js routing).
-          window.location.href = destination;
-        } else {
-          router.push(destination);
-          router.refresh();
-        }
+        // Both destinations are Next routes; client navigation keeps the
+        // hydrated session so the destination's guard passes on the first try.
+        router.push(destination);
+        router.refresh();
       }, 1000);
     } catch (err: any) {
       setError(err.message || t("error_generic"));

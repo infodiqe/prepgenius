@@ -1,7 +1,18 @@
 from rest_framework.permissions import BasePermission
 
-from accounts.models.rbac import PLATFORM_ADMIN, STUDENT
+from accounts.models.rbac import CONTENT_MANAGER, PLATFORM_ADMIN, STUDENT
 from accounts.models import UserRole
+
+# OPS-BE-01 — roles permitted to use the read-only Operations User 360 APIs.
+# `platform_admin` and `content_manager` exist in the canonical seed today;
+# `support` and `operations` are referenced by name so access activates
+# automatically once those roles are seeded (seeding them platform-wide is a
+# separate RBAC concern and is intentionally NOT done here — it would change the
+# canonical role-seed contract). Matched by name through the existing `HasRole`
+# machinery — no parallel permission system.
+SUPPORT = "support"
+OPERATIONS = "operations"
+OPS_USER_MANAGEMENT_ROLES = {PLATFORM_ADMIN, CONTENT_MANAGER, SUPPORT, OPERATIONS}
 
 
 class HasRole(BasePermission):
@@ -22,6 +33,17 @@ class HasRole(BasePermission):
             (cls,),
             {"roles": set(roles)},
         )
+
+
+class IsOpsUserViewer(HasRole):
+    """
+    Read access to the Operations Platform User 360 APIs (OPS-BE-01).
+
+    Reuses ``HasRole`` (RBAC). Authorization is role-based only — no superuser
+    bypass — so the access surface is exactly the four named operational roles.
+    """
+
+    roles = OPS_USER_MANAGEMENT_ROLES
 
 
 class IsStudent(BasePermission):

@@ -5,7 +5,7 @@ import { render, cleanup } from "@testing-library/react";
 import { OnboardingGuard } from "./OnboardingGuard";
 
 const state = vi.hoisted(() => ({
-  user: null as { target_exam_id: string | null } | null,
+  user: null as { target_exam_id: string | null; roles?: string[] } | null,
   isLoading: false,
   pathname: "/dashboard",
   replace: vi.fn(),
@@ -49,6 +49,33 @@ describe("OnboardingGuard — redirect on incomplete onboarding", () => {
       </OnboardingGuard>,
     );
     expect(queryByTestId("loading")).toBeTruthy();
+    expect(queryByTestId("protected")).toBeNull();
+  });
+});
+
+describe("OnboardingGuard — operational users are exempt (SPRINT-5A-01B)", () => {
+  // Operational roles legitimately have no target exam and belong in /ops, so
+  // they must NEVER be forced into student onboarding / target-exam selection.
+  it.each([["platform_admin"], ["content_manager"], ["content_reviewer"], ["sme"], ["institution_admin"]])(
+    "does not redirect an ops user (%s) with a null target_exam_id",
+    (role) => {
+      state.user = { target_exam_id: null, roles: [role] };
+      state.pathname = "/dashboard";
+      const { queryByTestId } = render(
+        <OnboardingGuard>{protectedChild}</OnboardingGuard>,
+      );
+      expect(state.replace).not.toHaveBeenCalled();
+      expect(queryByTestId("protected")).toBeTruthy();
+    },
+  );
+
+  it("still redirects a plain student (no ops roles) with a null target_exam_id", () => {
+    state.user = { target_exam_id: null, roles: ["student"] };
+    state.pathname = "/dashboard";
+    const { queryByTestId } = render(
+      <OnboardingGuard>{protectedChild}</OnboardingGuard>,
+    );
+    expect(state.replace).toHaveBeenCalledWith("/onboarding");
     expect(queryByTestId("protected")).toBeNull();
   });
 });

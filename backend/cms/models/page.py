@@ -17,6 +17,16 @@ STATUS_CHOICES = [
     (STATUS_PUBLISHED, "Published"),
 ]
 
+# Page kind. A generic `page` renders at /content/<slug>; a `guide` is a
+# CMS-powered study guide rendered at /guides/<slug> (T45). Same model, same
+# blocks — only the surface differs.
+PAGE_TYPE_PAGE = "page"
+PAGE_TYPE_GUIDE = "guide"
+PAGE_TYPE_CHOICES = [
+    (PAGE_TYPE_PAGE, "Page"),
+    (PAGE_TYPE_GUIDE, "Guide"),
+]
+
 
 class CMSPage(models.Model):
     """A public content page authored in Django Admin (T41).
@@ -33,6 +43,12 @@ class CMSPage(models.Model):
     locale = models.CharField(
         max_length=10, choices=LOCALE_CHOICES, default="as"
     )
+    page_type = models.CharField(
+        max_length=20, choices=PAGE_TYPE_CHOICES, default=PAGE_TYPE_PAGE
+    )
+    # Optional grouping label for guide index pages (e.g. "CTET"). Freeform so
+    # new categories are data, not deployments (claude_rules §1).
+    category = models.CharField(max_length=100, blank=True, default="")
     status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT
     )
@@ -52,6 +68,7 @@ class CMSPage(models.Model):
         indexes = [
             models.Index(fields=["slug", "locale"]),
             models.Index(fields=["status"]),
+            models.Index(fields=["page_type", "status"]),
         ]
 
     def save(self, *args, **kwargs):

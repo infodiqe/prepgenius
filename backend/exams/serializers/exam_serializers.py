@@ -427,3 +427,106 @@ class ExamHierarchySerializer(serializers.ModelSerializer):
             "name",
             "subjects",
         ]
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PUBLIC EXAM LANDING (T42)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class PublicExamSerializer(serializers.ModelSerializer):
+    """Read-only payload for a public exam landing page."""
+
+    status = serializers.SerializerMethodField()
+    overview = serializers.SerializerMethodField()
+    syllabus_summary = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Exam
+        fields = [
+            "slug",
+            "code",
+            "name",
+            "description",
+            "target_audience",
+            "exam_date",
+            "status",
+            "overview",
+            "syllabus_summary",
+        ]
+        read_only_fields = fields
+
+    def get_status(self, obj) -> str:
+        return "published" if obj.is_active else "draft"
+
+    def get_overview(self, obj) -> dict:
+        rules = obj.exam_rules or {}
+        return {
+            "mode": rules.get("mode", ""),
+            "duration_minutes": rules.get("duration_minutes"),
+            "total_questions": rules.get("total_questions"),
+            "total_marks": rules.get("total_marks"),
+            "negative_marking": rules.get("negative_marking"),
+        }
+
+    def get_syllabus_summary(self, obj) -> list:
+        summary = []
+        for subject in obj.subjects.all():
+            count = getattr(subject, "topic_count", None)
+            if count is None:
+                count = subject.topics.count()
+            summary.append({"subject": subject.name, "topic_count": count})
+        return summary
+
+
+class PublicExamListSerializer(serializers.ModelSerializer):
+    """Minimal payload used to build the sitemap (slug only-ish)."""
+
+    class Meta:
+        model = Exam
+        fields = ["slug", "code", "name", "updated_at"]
+        read_only_fields = fields
+
+
+class _PublicSyllabusExamSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Exam
+        fields = ["slug", "name"]
+        read_only_fields = fields
+
+
+class PublicSyllabusSerializer(serializers.Serializer):
+    """Read-only syllabus tree for a public exam (T43).
+
+    Serializes a dict ``{"exam": Exam, "subjects": [Subject, ...]}`` where the
+    subjects carry prefetched topics → subtopics.
+    """
+
+    exam = _PublicSyllabusExamSerializer()
+    subjects = SubjectHierarchySerializer(many=True)
+
+
+class PublicPreviousYearPaperSerializer(serializers.ModelSerializer):
+    """A single previous-year paper for the public listing (T44)."""
+
+    title = serializers.SerializerMethodField()
+    question_count = serializers.IntegerField(source="total_questions")
+    available = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PreviousYearPaper
+        fields = ["id", "year", "title", "question_count", "available"]
+        read_only_fields = fields
+
+    def get_title(self, obj) -> str:
+        return f"{obj.year} Question Paper"
+
+    def get_available(self, obj) -> bool:
+        return obj.total_questions > 0
+
+
+class PublicExamPapersSerializer(serializers.Serializer):
+    """Read-only previous-year-papers payload for a public exam (T44)."""
+
+    exam = _PublicSyllabusExamSerializer()
+    papers = PublicPreviousYearPaperSerializer(many=True)

@@ -26,8 +26,9 @@ class ExamAdmin(admin.ModelAdmin):
         "created_at",
     ]
     list_filter = ["exam_type", "is_active", "audience_is_minor"]
-    search_fields = ["code", "name"]
+    search_fields = ["code", "name", "slug"]
     readonly_fields = ["id", "created_at", "updated_at"]
+    prepopulated_fields = {"slug": ("name",)}
     fieldsets = [
         (
             None,
@@ -38,6 +39,17 @@ class ExamAdmin(admin.ModelAdmin):
                     "exam_type",
                     "is_active",
                     "audience_is_minor",
+                ]
+            },
+        ),
+        (
+            "Public landing page",
+            {
+                "fields": [
+                    "slug",
+                    "description",
+                    "target_audience",
+                    "exam_date",
                 ]
             },
         ),

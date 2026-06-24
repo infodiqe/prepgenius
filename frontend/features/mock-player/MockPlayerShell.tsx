@@ -685,11 +685,12 @@ export function MockPlayerShell(props: MockPlayerShellProps) {
   const t = useTranslations('player');
 
   if (!props.mockTestId) {
-    // Practice types (topic/subject/mixed) not yet supported — OQ-03 unresolved.
-    // page.tsx also guards this, but belt-and-suspenders here.
+    // All attempt types — including practice (topic/subject/mixed), which carry a
+    // server-generated custom MockTest (T28) — have a mock_test_id. A missing one
+    // is a malformed attempt; page.tsx guards this too (belt-and-suspenders).
     return (
       <div className="flex items-center justify-center h-screen text-sm text-slate-500">
-        {t('unsupported_practice')}
+        {t('session_unavailable')}
       </div>
     );
   }

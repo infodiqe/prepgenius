@@ -112,17 +112,19 @@ export default async function PracticeAttemptPage({ params, searchParams }: Page
     redirect(completionHref);
   }
 
-  // ── MVP scope check ─────────────────────────────────────────────────────────
-  // Practice types (topic/subject/mixed) have no mock_test_id; OQ-03 not resolved.
+  // ── Integrity check ───────────────────────────────────────────────────────
+  // Every attempt type — full_mock, previous_year, and practice (topic/subject/
+  // mixed, which generate a custom MockTest server-side, see T28) — carries a
+  // mock_test_id. A missing one means the attempt is malformed and cannot be
+  // played, so surface a real error rather than routing the learner nowhere.
 
   if (!attempt.mock_test_id) {
     return (
       <div className="flex flex-col items-center justify-center h-screen gap-6 bg-white text-slate-800 px-4">
-        <h2 className="text-xl font-bold">Practice Mode Coming Soon</h2>
+        <h2 className="text-xl font-bold">Session Unavailable</h2>
         <p className="text-sm text-slate-500 text-center max-w-sm">
-          The interactive player currently supports Full Mock and Previous Year
-          attempt types only. Practice mode (topic, subject, mixed) will be
-          available in the next sprint.
+          This session can&apos;t be opened because its question set is missing.
+          Please start a new practice session.
         </p>
         <Link
           href="/practice"

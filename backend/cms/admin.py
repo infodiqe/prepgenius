@@ -15,18 +15,33 @@ class CMSPageAdmin(admin.ModelAdmin):
     list_display = [
         "slug",
         "title",
+        "page_type",
+        "category",
         "locale",
         "status",
         "published_at",
         "updated_at",
     ]
-    list_filter = ["status", "locale"]
-    search_fields = ["slug", "title", "meta_title"]
+    list_filter = ["page_type", "status", "locale"]
+    search_fields = ["slug", "title", "meta_title", "category"]
     ordering = ["-updated_at"]
     prepopulated_fields = {"slug": ("title",)}
     readonly_fields = ["id", "created_at", "updated_at"]
     fieldsets = [
-        (None, {"fields": ["title", "slug", "locale", "status", "published_at"]}),
+        (
+            None,
+            {
+                "fields": [
+                    "title",
+                    "slug",
+                    "page_type",
+                    "category",
+                    "locale",
+                    "status",
+                    "published_at",
+                ]
+            },
+        ),
         ("SEO", {"fields": ["meta_title", "meta_description"]}),
         ("Timestamps", {"fields": ["id", "created_at", "updated_at"]}),
     ]

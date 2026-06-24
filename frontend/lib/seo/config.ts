@@ -51,6 +51,7 @@ export const PUBLIC_ROUTES = [
   "/contact",
   "/privacy",
   "/terms",
+  "/guides",
 ];
 
 /**

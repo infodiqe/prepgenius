@@ -4,8 +4,11 @@ from django.core.exceptions import ObjectDoesNotExist
 from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import status
 from rest_framework.exceptions import NotFound, ValidationError
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from exams.models import Exam
 
 from common.permissions import (
     CanActivateDeactivateExam,
@@ -26,6 +29,9 @@ from exams.exceptions import (
 from exams.selectors.exam_selectors import (
     get_complete_exam_hierarchy,
     get_exam_by_id,
+    get_public_exam_by_slug,
+    get_public_exam_papers,
+    get_public_exam_syllabus,
     get_previous_year_paper_by_id,
     get_subject_by_id,
     get_subtopic_by_id,
@@ -33,6 +39,7 @@ from exams.selectors.exam_selectors import (
     get_topic_by_id,
     list_active_exams,
     list_exams,
+    list_public_exams,
     list_previous_year_papers,
     list_subjects_for_exam,
     list_subtopics_for_topic,
@@ -47,6 +54,10 @@ from exams.serializers import (
     PreviousYearPaperCreateSerializer,
     PreviousYearPaperReadSerializer,
     PreviousYearPaperUpdateSerializer,
+    PublicExamListSerializer,
+    PublicExamPapersSerializer,
+    PublicExamSerializer,
+    PublicSyllabusSerializer,
     SubjectCreateSerializer,
     SubjectHierarchySerializer,
     SubjectReadSerializer,
@@ -562,3 +573,81 @@ class PaperDetail(ExamBaseView):
             paper_id=pk, **serializer.validated_data
         )
         return Response(PreviousYearPaperReadSerializer(paper).data)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PUBLIC EXAM LANDING (T42) — AllowAny, read-only, published (is_active) only
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+@extend_schema(
+    summary="Get a public exam landing page",
+    description=(
+        "Public, read-only. Returns marketing/landing data for a published "
+        "(active) exam by slug. Unknown / inactive / slug-less exams return 404."
+    ),
+    responses=PublicExamSerializer,
+)
+class PublicExamDetail(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, slug: str):
+        try:
+            exam = get_public_exam_by_slug(slug=slug)
+        except Exam.DoesNotExist as exc:
+            raise NotFound("Exam not found.") from exc
+        return Response(PublicExamSerializer(exam).data)
+
+
+@extend_schema(
+    summary="List public exam landing pages",
+    description="Public, read-only. Minimal list of published exams with slugs (sitemap).",
+    responses=PublicExamListSerializer(many=True),
+)
+class PublicExamList(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        return Response(
+            PublicExamListSerializer(list_public_exams(), many=True).data
+        )
+
+
+@extend_schema(
+    summary="Get a public exam syllabus",
+    description=(
+        "Public, read-only. Returns the subject → topic → subtopic syllabus "
+        "tree for a published exam by slug. Unknown / inactive exams return 404."
+    ),
+    responses=PublicSyllabusSerializer,
+)
+class PublicExamSyllabus(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, slug: str):
+        try:
+            exam, subjects = get_public_exam_syllabus(slug=slug)
+        except Exam.DoesNotExist as exc:
+            raise NotFound("Exam not found.") from exc
+        data = PublicSyllabusSerializer({"exam": exam, "subjects": subjects}).data
+        return Response(data)
+
+
+@extend_schema(
+    summary="Get a public exam's previous year papers",
+    description=(
+        "Public, read-only. Returns the list of previous year papers for a "
+        "published exam by slug. Unknown / inactive exams return 404."
+    ),
+    responses=PublicExamPapersSerializer,
+)
+class PublicExamPreviousYearPapers(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, slug: str):
+        try:
+            exam, papers = get_public_exam_papers(slug=slug)
+        except Exam.DoesNotExist as exc:
+            raise NotFound("Exam not found.") from exc
+        data = PublicExamPapersSerializer({"exam": exam, "papers": papers}).data
+        return Response(data)

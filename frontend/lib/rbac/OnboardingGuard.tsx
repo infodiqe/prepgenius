@@ -3,6 +3,7 @@
 import React, { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/AuthContext";
+import { hasOpsAccess } from "@/features/ops/opsAccess";
 
 /**
  * OnboardingGuard — onboarding-completion gate (Sprint 1 · T08).
@@ -43,9 +44,13 @@ export function OnboardingGuard({
   const pathname = usePathname();
 
   const isAuthenticated = !!user;
-  // Rule keys strictly on `target_exam_id === null` (the field is always
-  // present in the profile contract; null means "no exam chosen yet").
-  const needsOnboarding = !!user && user.target_exam_id === null;
+  // Rule keys on `target_exam_id === null` (the field is always present in the
+  // profile contract; null means "no exam chosen yet") — BUT operational users
+  // (admin / content manager / reviewer / SME / institution admin) legitimately
+  // have no target exam and belong in the Operations Platform, so they are never
+  // forced into student onboarding / target-exam selection (SPRINT-5A-01B).
+  const needsOnboarding =
+    !!user && user.target_exam_id === null && !hasOpsAccess(user.roles);
   const onOnboarding = (pathname ?? "").startsWith(ONBOARDING_PATH);
 
   // Only this guard's own redirect condition; the unauthenticated and loading

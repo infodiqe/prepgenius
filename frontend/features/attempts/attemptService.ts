@@ -67,8 +67,13 @@ export interface CreatePracticeAttemptRequest {
 }
 
 export async function createPracticeAttempt(data: CreatePracticeAttemptRequest) {
+  // The attempts app is mounted at `attempts/` in config/api_router.py, and its
+  // in-app URLConf prefixes routes with `attempts/` too — so the real path is
+  // doubled (`/attempts/attempts/...`), matching every other attempt endpoint
+  // above (createAttempt, startAttempt, etc.). The inner segment is required;
+  // omitting it resolves to a non-existent route and 404s. (SPRINT-5A-02)
   return apiRequest<paths["/api/v1/attempts/attempts/"]["post"]["responses"]["201"]["content"]["application/json"]>(
-    "/attempts/practice/",
+    "/attempts/attempts/practice/",
     {
       method: "POST",
       body: data,

@@ -3,6 +3,10 @@ from django.urls import include, path
 
 urlpatterns: list = [
     path("auth/", include("accounts.api.urls")),
+    path("ops/", include("accounts.api.ops_urls")),
+    path("ops/", include("credits.api.ops_urls")),
+    path("ops/", include("analytics.api.ops_urls")),
+    path("credits/", include("credits.api.urls")),
     path("", include("exams.api.urls")),
     path("", include("questions.api.urls")),
     path("attempts/", include("attempts.api.urls")),
