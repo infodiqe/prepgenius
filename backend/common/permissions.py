@@ -46,6 +46,14 @@ CONTENT_REJECT_ROLES = {
     "platform_admin",
 }
 
+# Operator roles allowed to generate AI draft questions (content creators only —
+# never students/teachers). Mirrors the content-creation write roles; AI output is
+# always Draft and still passes human review before publish (PRD §8).
+AI_GENERATE_ROLES = {
+    "content_manager",
+    "platform_admin",
+}
+
 
 class IsAuthenticatedReadOnly(BasePermission):
     def has_permission(self, request, view):
@@ -155,4 +163,16 @@ class CanRejectContent(BasePermission):
         return UserRole.objects.filter(
             user=request.user,
             role__name__in=CONTENT_REJECT_ROLES,
+        ).exists()
+
+
+class CanGenerateAiQuestions(BasePermission):
+    """Operator-only access to AI question generation (no student/teacher)."""
+
+    def has_permission(self, request, view):
+        if not request.user.is_authenticated:
+            return False
+        return UserRole.objects.filter(
+            user=request.user,
+            role__name__in=AI_GENERATE_ROLES,
         ).exists()

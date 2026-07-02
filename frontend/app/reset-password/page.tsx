@@ -80,7 +80,7 @@ export default function ResetPasswordPage() {
               <Input
                 id="token"
                 type="text"
-                placeholder="Enter reset token"
+                placeholder={t("reset_token_placeholder")}
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
                 disabled={loading}
@@ -106,9 +106,10 @@ export default function ResetPasswordPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-300"
+                  aria-label={showPassword ? t("hide_password") : t("show_password")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded text-slate-400 hover:text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? <EyeOff aria-hidden="true" className="h-4 w-4" /> : <Eye aria-hidden="true" className="h-4 w-4" />}
                 </button>
               </div>
             </div>

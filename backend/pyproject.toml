@@ -22,6 +22,7 @@ addopts = [
 markers = [
     "slow: marks tests as slow",
     "integration: marks tests as integration tests",
+    "concurrency: row-lock/double-spend tests; only enforced on PostgreSQL (run in the CI concurrency-tests job; self-skip on SQLite)",
 ]
 asyncio_mode = "auto"
 

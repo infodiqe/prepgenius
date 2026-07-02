@@ -154,6 +154,11 @@ REST_FRAMEWORK = {
         "login": "5/minute",
         "otp": "3/minute",
     },
+    # RC-02B: the app sits behind one reverse proxy (nginx), which sets
+    # X-Forwarded-For. Without this, DRF keys throttles (incl. the per-IP login
+    # brute-force throttle) by the nginx container IP — so every client shares a
+    # single bucket. NUM_PROXIES=1 makes DRF read the real client IP from XFF.
+    "NUM_PROXIES": env.int("NUM_PROXIES", default=1),
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
     ],
@@ -349,6 +354,11 @@ LOGGING = {
 # ── AI and Credit Gateway Config ──────────────────────────────────────────────
 # PRD v4 §5.2 (credits), §7 (AI gateway)
 
+# NOTE (SPRINT-5A-04/05): currently UNUSED. Per PRD v4 §5.2 AI credits are a
+# premium-plan feature — the free tier gets unlimited practice + 2 mocks/day, no
+# AI credits. There is intentionally NO automatic signup/onboarding grant; this
+# value is retained for a future premium/monthly-grant mechanism (Celery Beat or
+# plan provisioning) which is a monetization decision pending product sign-off.
 CREDIT_FREE_MONTHLY_GRANT = env.int("CREDIT_FREE_MONTHLY_GRANT", default=100)
 
 # Credit cost mappings per operation:
@@ -367,16 +377,22 @@ CREDIT_COSTS = env.json(
     }
 )
 
-# Provider key env vars - only accessible on the backend
+# Provider key env vars - only accessible on the backend (ai_gateway only).
 GROQ_API_KEY = env("GROQ_API_KEY", default="")
 OPENAI_API_KEY = env("OPENAI_API_KEY", default="")
 DEEPSEEK_API_KEY = env("DEEPSEEK_API_KEY", default="")
+ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
+GEMINI_API_KEY = env("GEMINI_API_KEY", default="")
 
 # Order of providers to try when executing an AI prompt (fallback chain)
 AI_PROVIDER_CHAIN = env.list(
     "AI_PROVIDER_CHAIN",
     default=env.list("AI_PROVIDER_ORDER", default=["groq", "openai", "deepseek"])
 )
+
+# Optional per-provider base-URL overrides (e.g. a proxy/gateway). Empty = use the
+# adapter default. Keyed by provider name.
+AI_PROVIDER_BASE_URLS = env.json("AI_PROVIDER_BASE_URLS", default={})
 
 # Mapping of operations to models per provider
 AI_MODELS = env.json(
@@ -396,6 +412,42 @@ AI_MODELS = env.json(
         }
     }
 )
+
+# Per-provider default model, used by the gateway when AI_MODELS has no
+# per-operation entry for a prompt type. Keeps model selection data-driven so no
+# model name is hardcoded in business logic (PRD §7).
+AI_DEFAULT_MODELS = env.json(
+    "AI_DEFAULT_MODELS",
+    default={
+        "groq": "llama-3.3-70b-versatile",
+        "openai": "gpt-4o-mini",
+        "anthropic": "claude-3-5-sonnet-latest",
+        "gemini": "gemini-1.5-flash",
+        "deepseek": "deepseek-chat",
+        "mock": "mock-model",
+    },
+)
+
+# ── AI Gateway retry / timeout policy ─────────────────────────────────────────
+# Configurable retry strategy for the gateway. Transient provider failures
+# (timeout, rate limit, 5xx) are retried up to AI_MAX_RETRIES times per provider
+# with linear backoff, then the gateway falls back to the next provider in the
+# chain. Never crashes the caller — failures return a failed AIResult.
+AI_MAX_RETRIES = env.int("AI_MAX_RETRIES", default=2)
+AI_RETRY_BACKOFF_SECONDS = env.float("AI_RETRY_BACKOFF_SECONDS", default=0.5)
+AI_REQUEST_TIMEOUT_SECONDS = env.float("AI_REQUEST_TIMEOUT_SECONDS", default=30.0)
+
+# Token pricing for cost/margin monitoring, per 1K tokens, in currency units:
+# {provider: {model: {"prompt": rate, "completion": rate}}}. Empty = cost 0
+# (cost tracking is best-effort and never blocks a call).
+AI_TOKEN_PRICING = env.json("AI_TOKEN_PRICING", default={})
+
+# ── Async batch generation (Sprint-6A-06) ─────────────────────────────────────
+# Upper bound on questions per async batch job. Batches are executed by a Celery
+# task that chunks the request into AI_GENERATION_BATCH_SIZE-sized calls to the
+# existing QuestionDraftService (each call is bounded by MAX_QUESTIONS_PER_REQUEST).
+AI_MAX_BATCH_QUESTIONS = env.int("AI_MAX_BATCH_QUESTIONS", default=500)
+AI_GENERATION_BATCH_SIZE = env.int("AI_GENERATION_BATCH_SIZE", default=20)
 
 # ── Email ─────────────────────────────────────────────────────────────────────
 

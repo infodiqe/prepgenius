@@ -58,8 +58,13 @@ export async function confirmPasswordReset(data: ConfirmResetRequest) {
 }
 
 export async function getProfile() {
+  // Session probe (runs on app mount, incl. public pages). A 401 here means
+  // "not signed in" — refresh is still attempted, but a refresh failure must
+  // NOT redirect to /login, or logged-out visitors on public pages would be
+  // bounced away. AuthContext interprets the thrown 401 as "no session".
   return apiRequest<paths["/api/v1/auth/profile/"]["get"]["responses"]["200"]["content"]["application/json"]>("/auth/profile/", {
     method: "GET",
+    skipAuthRedirect: true,
   });
 }
 

@@ -83,8 +83,8 @@ export default function PracticeModeTabs({
   useEffect(() => {
     const topicParam = searchParams.get("topic");
     if (topicParam && examTree) {
-      for (const subject of examTree.subjects) {
-        const foundTopic = subject.topics.find((t) => t.id === topicParam);
+      for (const subject of examTree.subjects ?? []) {
+        const foundTopic = (subject.topics ?? []).find((t) => t.id === topicParam);
         if (foundTopic) {
           setTopicSubjectId(subject.id);
           setTopicId(foundTopic.id);
@@ -127,10 +127,10 @@ export default function PracticeModeTabs({
   return (
     <div className="space-y-6">
       {/* Scrollable Tabs Header */}
-      <div className="border-b border-slate-800/80">
+      <div className="border-b border-border">
         <nav
           className="flex space-x-1 overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0"
-          aria-label="Practice Modes"
+          aria-label={t("practice_modes_aria")}
         >
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -140,14 +140,14 @@ export default function PracticeModeTabs({
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 whitespace-nowrap transition-all outline-none focus-visible:bg-slate-800/40 focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-t-lg",
+                  "flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 whitespace-nowrap transition-all outline-none focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-t-lg",
                   isActive
-                    ? "border-indigo-500 text-white bg-indigo-500/5"
-                    : "border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-700"
+                    ? "border-indigo-500 text-foreground bg-indigo-500/5"
+                    : "border-transparent text-muted-foreground hover:text-muted-foreground hover:border-border"
                 )}
                 aria-current={isActive ? "page" : undefined}
               >
-                <Icon className={cn("h-4 w-4", isActive ? "text-indigo-400" : "text-slate-500")} />
+                <Icon className={cn("h-4 w-4", isActive ? "text-indigo-400" : "text-muted-foreground")} />
                 <span>{tab.label}</span>
               </button>
             );
@@ -169,14 +169,14 @@ export default function PracticeModeTabs({
               ) : (
                 <>
                   <div className="space-y-2">
-                    <label htmlFor="topic-subject-select" className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    <label htmlFor="topic-subject-select" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                       {t("select_subject")}
                     </label>
                     <Select value={topicSubjectId} onValueChange={handleSubjectChangeForTopic}>
-                      <SelectTrigger id="topic-subject-select" className="border-slate-800 bg-slate-950/80 text-white focus:ring-indigo-500">
-                        <SelectValue placeholder="Select Subject" />
+                      <SelectTrigger id="topic-subject-select" className="border-border bg-muted text-foreground focus:ring-indigo-500">
+                        <SelectValue placeholder={t("select_subject")} />
                       </SelectTrigger>
-                      <SelectContent className="border-slate-800 bg-slate-950 text-slate-200">
+                      <SelectContent className="border-border bg-muted text-muted-foreground">
                         {subjects.map((sub) => (
                           <SelectItem key={sub.id} value={sub.id}>
                             {sub.name}
@@ -187,7 +187,7 @@ export default function PracticeModeTabs({
                   </div>
 
                   <div className="space-y-2">
-                    <label htmlFor="topic-select" className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    <label htmlFor="topic-select" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                       {t("select_topic")}
                     </label>
                     <Select
@@ -195,10 +195,10 @@ export default function PracticeModeTabs({
                       onValueChange={setTopicId}
                       disabled={!topicSubjectId}
                     >
-                      <SelectTrigger id="topic-select" className="border-slate-800 bg-slate-950/80 text-white focus:ring-indigo-500">
-                        <SelectValue placeholder={topicSubjectId ? "Select Topic" : "Choose a subject first"} />
+                      <SelectTrigger id="topic-select" className="border-border bg-muted text-foreground focus:ring-indigo-500">
+                        <SelectValue placeholder={topicSubjectId ? t("select_topic") : t("choose_subject_first")} />
                       </SelectTrigger>
-                      <SelectContent className="border-slate-800 bg-slate-950 text-slate-200">
+                      <SelectContent className="border-border bg-muted text-muted-foreground">
                         {topicsForSelectedSubject.map((top) => (
                           <SelectItem key={top.id} value={top.id}>
                             {top.name}
@@ -222,7 +222,7 @@ export default function PracticeModeTabs({
                 });
               }}
               disabled={!topicId}
-              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold h-11 focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
+              className="w-full bg-indigo-600 hover:bg-indigo-500 text-primary-foreground font-bold h-11 focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
             >
               <span>{t("start_practice")}</span>
               <ChevronRight className="ml-2 h-4 w-4" />
@@ -241,14 +241,14 @@ export default function PracticeModeTabs({
                 />
               ) : (
                 <div className="space-y-2">
-                  <label htmlFor="subject-select" className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  <label htmlFor="subject-select" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     {t("select_subject")}
                   </label>
                   <Select value={subjectId} onValueChange={setSubjectId}>
-                    <SelectTrigger id="subject-select" className="border-slate-800 bg-slate-950/80 text-white focus:ring-indigo-500">
-                      <SelectValue placeholder="Select Subject" />
+                    <SelectTrigger id="subject-select" className="border-border bg-muted text-foreground focus:ring-indigo-500">
+                      <SelectValue placeholder={t("select_subject")} />
                     </SelectTrigger>
-                    <SelectContent className="border-slate-800 bg-slate-950 text-slate-200">
+                    <SelectContent className="border-border bg-muted text-muted-foreground">
                       {subjects.map((sub) => (
                         <SelectItem key={sub.id} value={sub.id}>
                           {sub.name}
@@ -271,7 +271,7 @@ export default function PracticeModeTabs({
                 });
               }}
               disabled={!subjectId}
-              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold h-11 focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
+              className="w-full bg-indigo-600 hover:bg-indigo-500 text-primary-foreground font-bold h-11 focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
             >
               <span>{t("start_subject_practice")}</span>
               <ChevronRight className="ml-2 h-4 w-4" />
@@ -282,18 +282,18 @@ export default function PracticeModeTabs({
         {/* Mixed Practice Content */}
         {activeTab === "mixed" && (
           <div className="space-y-6 max-w-xl">
-            <Card className="border-slate-800 bg-slate-900/30 backdrop-blur-md">
+            <Card className="border-border bg-card backdrop-blur-md">
               <CardContent className="p-6 space-y-3">
-                <h4 className="text-lg font-bold text-white tracking-tight">
+                <h4 className="text-lg font-bold text-foreground tracking-tight">
                   {t("mixed_practice.title")}
                 </h4>
-                <p className="text-sm text-slate-400 leading-relaxed">
+                <p className="text-sm text-muted-foreground leading-relaxed">
                   {t("mixed_practice.desc")}
                 </p>
                 <div className="flex gap-4 text-xs font-semibold text-indigo-400 pt-2">
-                  <span>Questions: 50</span>
+                  <span>{t("mixed_practice.questions_label", { count: 50 })}</span>
                   <span>•</span>
-                  <span>Duration: 40 mins</span>
+                  <span>{t("mixed_practice.duration_label", { mins: 40 })}</span>
                 </div>
               </CardContent>
             </Card>
@@ -306,7 +306,7 @@ export default function PracticeModeTabs({
                   totalQuestions: 50,
                 })
               }
-              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold h-11 focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
+              className="w-full bg-indigo-600 hover:bg-indigo-500 text-primary-foreground font-bold h-11 focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
             >
               <span>{t("start_mixed_practice")}</span>
               <ChevronRight className="ml-2 h-4 w-4" />

@@ -60,6 +60,7 @@ describe("ops navigation — implemented vs Coming Soon", () => {
     "/ops/exams",
     "/ops/cms",
     "/ops/analytics",
+    "/ops/ai",
     "/ops/users",
     "/ops/billing",
   ]);
@@ -74,13 +75,11 @@ describe("ops navigation — implemented vs Coming Soon", () => {
     }
   });
 
-  it("marks SME Review, AI Operations, Settings as Coming Soon", () => {
+  it("marks SME Review, Settings as Coming Soon", () => {
     const comingSoon = opsNavItems
       .filter((i) => i.comingSoon)
       .map((i) => i.label)
       .sort();
-    expect(comingSoon).toEqual(
-      ["AI Operations", "SME Review", "Settings"].sort(),
-    );
+    expect(comingSoon).toEqual(["SME Review", "Settings"].sort());
   });
 });

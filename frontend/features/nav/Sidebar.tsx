@@ -23,7 +23,7 @@ export default function Sidebar() {
 
   return (
     <aside
-      aria-label="Sidebar Navigation"
+      aria-label={t("sidebar_nav_aria")}
       className={cn(
         "hidden md:flex h-screen flex-col border-r border-border bg-card backdrop-blur-xl transition-all duration-300",
         collapsed ? "w-20" : "w-64"
@@ -76,7 +76,7 @@ export default function Sidebar() {
           size="icon"
           onClick={() => setCollapsed(!collapsed)}
           className="h-10 w-10 text-muted-foreground hover:text-foreground"
-          aria-label={collapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+          aria-label={collapsed ? t("expand_sidebar") : t("collapse_sidebar")}
         >
           {collapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
         </Button>

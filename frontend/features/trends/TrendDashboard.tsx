@@ -2,17 +2,16 @@
 
 import * as React from "react";
 import { useTranslations } from "next-intl";
-import { AlertCircle, Compass, LineChart } from "lucide-react";
+import { Compass, LineChart } from "lucide-react";
 
 import {
   Card,
   CardContent,
-  Button,
   EmptyState,
   EmptyStateIcon,
   EmptyStateTitle,
   EmptyStateDescription,
-  EmptyStateAction,
+  ErrorState,
 } from "@/components/ui";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useErrorToast } from "@/features/feedback/useErrorToast";
@@ -123,22 +122,13 @@ export function TrendDashboard() {
 
   if (phase === "error") {
     return shell(
-      <Card>
-        <CardContent className="p-0">
-          <EmptyState className="py-10">
-            <EmptyStateIcon className="bg-destructive/10 text-destructive">
-              <AlertCircle />
-            </EmptyStateIcon>
-            <EmptyStateTitle as="h2">{t("error_title")}</EmptyStateTitle>
-            <EmptyStateDescription>{t("error_desc")}</EmptyStateDescription>
-            <EmptyStateAction>
-              <Button type="button" onClick={() => load()}>
-                {t("retry")}
-              </Button>
-            </EmptyStateAction>
-          </EmptyState>
-        </CardContent>
-      </Card>,
+      <ErrorState
+        onRetry={() => load()}
+        title={t("error_title")}
+        description={t("error_desc")}
+        retryLabel={t("retry")}
+        headingLevel="h2"
+      />,
     );
   }
 

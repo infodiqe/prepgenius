@@ -42,6 +42,10 @@ class PublicCMSPageDetail(APIView):
     """GET /api/v1/cms/pages/<slug>/ — published, locale-aware, read-only."""
 
     permission_classes = [AllowAny]
+    # RC-02B: public, cacheable content consumed by SSR. nginx enforces per-IP
+    # rate limits; the DRF anon throttle keyed by the SSR container IP would
+    # wrongly throttle all server-rendered traffic, so it is disabled here.
+    throttle_classes = []
 
     def get(self, request, slug: str):
         locale = request.query_params.get("locale") or DEFAULT_LOCALE
@@ -61,6 +65,10 @@ class PublicCMSPageList(APIView):
     """GET /api/v1/cms/pages/ — published pages (slug/locale/updated_at)."""
 
     permission_classes = [AllowAny]
+    # RC-02B: public, cacheable content consumed by SSR. nginx enforces per-IP
+    # rate limits; the DRF anon throttle keyed by the SSR container IP would
+    # wrongly throttle all server-rendered traffic, so it is disabled here.
+    throttle_classes = []
 
     def get(self, request):
         pages = list_published_pages()
@@ -87,6 +95,10 @@ class PublicGuideList(APIView):
     """GET /api/v1/cms/guides/ — published guide cards, locale-aware, read-only."""
 
     permission_classes = [AllowAny]
+    # RC-02B: public, cacheable content consumed by SSR. nginx enforces per-IP
+    # rate limits; the DRF anon throttle keyed by the SSR container IP would
+    # wrongly throttle all server-rendered traffic, so it is disabled here.
+    throttle_classes = []
 
     def get(self, request):
         locale = request.query_params.get("locale") or DEFAULT_LOCALE
@@ -115,6 +127,10 @@ class PublicGuideDetail(APIView):
     """GET /api/v1/cms/guides/<slug>/ — published, locale-aware, read-only."""
 
     permission_classes = [AllowAny]
+    # RC-02B: public, cacheable content consumed by SSR. nginx enforces per-IP
+    # rate limits; the DRF anon throttle keyed by the SSR container IP would
+    # wrongly throttle all server-rendered traffic, so it is disabled here.
+    throttle_classes = []
 
     def get(self, request, slug: str):
         locale = request.query_params.get("locale") or DEFAULT_LOCALE

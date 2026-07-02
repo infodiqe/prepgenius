@@ -18,20 +18,20 @@ export default function StatCard({
   iconColorClass = "text-blue-500",
 }: StatCardProps) {
   return (
-    <BaseCard className="border-slate-800 bg-slate-900/40 backdrop-blur-md hover:border-slate-700 transition-colors">
+    <BaseCard className="border-border bg-card backdrop-blur-md hover:border-border transition-colors">
       <CardContent className="flex items-center justify-between p-6">
         <div className="space-y-1">
-          <p className="text-xs font-medium uppercase tracking-wider text-slate-400">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
             {title}
           </p>
-          <p className="text-2xl font-bold tracking-tight text-white">
+          <p className="text-2xl font-bold tracking-tight text-foreground">
             {value}
           </p>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-muted-foreground">
             {description}
           </p>
         </div>
-        <div className={`rounded-full bg-slate-950 p-3 ${iconColorClass} bg-opacity-40`}>
+        <div className={`rounded-full bg-muted p-3 ${iconColorClass} bg-opacity-40`}>
           <Icon className="h-5 w-5" aria-hidden="true" />
         </div>
       </CardContent>

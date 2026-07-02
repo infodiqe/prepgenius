@@ -61,6 +61,7 @@ import { useIndexedDB } from './useIndexedDB';
 import {
   savePlayerAnswer,
   AttemptNotActiveError,
+  AttemptNotFoundError,
 } from '../services/answerService';
 import { activeFlushPromises, activeFlushingQuestions } from './useOfflineQueue';
 import type { QuestionState } from '../types';
@@ -126,6 +127,15 @@ export function useSaveAnswer(): UseSaveAnswerResult {
       timeSpentSeconds: number,
     ): Promise<void> => {
       const attemptId = attemptIdRef.current;
+
+      // ── Guard: no attempt id → nothing to save ─────────────────────────────
+      // saveAnswer can be invoked before LOAD_SESSION has re-rendered (e.g. the
+      // shell's initial "mark Q1 visited" call fires synchronously right after
+      // dispatching LOAD_SESSION, while attemptIdRef still holds the initial '').
+      // Without this guard the request goes to /attempts/attempts//answers/save/
+      // (empty id) → 404 → 4 pointless retries. The question is still marked
+      // visited in React state; a real save follows once the session is loaded.
+      if (!attemptId) return;
 
       // ── Step 0: Deterministic sequencing ───────────────────────────────────
       const currentSequence = (latestRequestSequence.get(questionId) ?? 0) + 1;
@@ -245,6 +255,18 @@ export function useSaveAnswer(): UseSaveAnswerResult {
         } catch (err) {
           if (err instanceof AttemptNotActiveError) {
             // Attempt auto-submitted by server. Stop all saves; shell will redirect.
+            if (latestRequestSequence.get(questionId) === currentSequence) {
+              dispatch({
+                type: 'SET_SAVE_STATUS',
+                payload: { status: 'failed' },
+              });
+            }
+            return;
+          }
+
+          if (err instanceof AttemptNotFoundError) {
+            // 404 = invalid attempt/question id. Retrying can never succeed, so
+            // stop immediately instead of burning the 4-attempt backoff.
             if (latestRequestSequence.get(questionId) === currentSequence) {
               dispatch({
                 type: 'SET_SAVE_STATUS',

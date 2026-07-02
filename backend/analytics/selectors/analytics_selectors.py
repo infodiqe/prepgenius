@@ -335,10 +335,14 @@ def get_dashboard_summary(*, user_id: UUID, exam_id: UUID) -> dict:
     correct = metrics["total_correct"] or 0
     incorrect = metrics["total_incorrect"] or 0
     total_answered = correct + incorrect
+    # No answered questions (no scored attempts, or every question skipped) means
+    # accuracy is undefined — return None so the UI can show "no data yet" rather
+    # than a fabricated 0.00%/100% (SPRINT-5A-03). When there IS data the formula
+    # is unchanged and stays consistent with the per-attempt `accuracy` field.
     overall_accuracy = (
         Decimal(str(round((correct / total_answered) * 100, 2)))
         if total_answered > 0
-        else Decimal("0.00")
+        else None
     )
 
     recent = list(attempts.order_by("-created_at")[:5])

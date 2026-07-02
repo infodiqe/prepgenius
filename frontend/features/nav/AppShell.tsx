@@ -2,10 +2,13 @@
 
 import React from "react";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import Sidebar from "@/features/nav/Sidebar";
 import TopBar from "@/features/nav/TopBar";
 import BottomTabBar from "@/features/nav/BottomTabBar";
 import { useWorkspace } from "@/features/workspace/WorkspaceProvider";
+
+const MAIN_CONTENT_ID = "main-content";
 
 /**
  * AppShell — generalized navigation shell (Sprint 0 · S0-T11).
@@ -26,6 +29,7 @@ import { useWorkspace } from "@/features/workspace/WorkspaceProvider";
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { activeWorkspace } = useWorkspace();
+  const tNav = useTranslations("nav");
 
   // Player route: /practice/{attemptId} (any non-empty segment after /practice/)
   const isPlayerRoute =
@@ -41,6 +45,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       data-workspace={activeWorkspace}
       className="flex h-screen w-screen overflow-hidden bg-background text-foreground font-sans"
     >
+      {/* Skip link — first focusable element; jumps past the chrome to main. */}
+      <a
+        href={`#${MAIN_CONTENT_ID}`}
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground focus:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {tNav("skip_to_content")}
+      </a>
+
       {/* Collapsible desktop Sidebar */}
       <Sidebar />
 
@@ -50,7 +62,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <TopBar />
 
         {/* Dynamic page contents */}
-        <main className="flex-1 overflow-y-auto px-4 py-6 md:px-8 pb-24 md:pb-6 bg-background relative">
+        <main
+          id={MAIN_CONTENT_ID}
+          role="main"
+          tabIndex={-1}
+          className="flex-1 overflow-y-auto px-4 py-6 md:px-8 pb-24 md:pb-6 bg-background relative focus:outline-none"
+        >
           <div className="mx-auto max-w-7xl w-full">{children}</div>
         </main>
 

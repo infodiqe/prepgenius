@@ -30,7 +30,7 @@ export default function MockTestCard({
 
   const formatDuration = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
-    return `${minutes} mins`;
+    return t("duration_mins", { count: minutes });
   };
 
   const getDifficultyColor = (diff: string) => {
@@ -47,7 +47,7 @@ export default function MockTestCard({
   const isPYP = type === "previous_year";
 
   return (
-    <Card className="border-slate-800 bg-slate-900/30 backdrop-blur-md hover:border-slate-700 transition-all duration-200">
+    <Card className="border-border bg-card backdrop-blur-md hover:border-border transition-all duration-200">
       <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -69,23 +69,23 @@ export default function MockTestCard({
             )}
             {attemptStatus === "in_progress" && (
               <span className="text-[9px] font-extrabold uppercase bg-amber-500/15 text-amber-400 px-2 py-0.5 rounded border border-amber-500/25 tracking-wider">
-                In Progress
+                {t("mock_test.in_progress")}
               </span>
             )}
           </div>
 
-          <h4 className="text-base font-bold text-white tracking-tight line-clamp-1">
+          <h4 className="text-base font-bold text-foreground tracking-tight line-clamp-1">
             {name}
           </h4>
 
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-400">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
             <div className="flex items-center gap-1.5">
-              <Clock className="h-3.5 w-3.5 text-slate-500" />
+              <Clock className="h-3.5 w-3.5 text-muted-foreground" />
               <span>{formatDuration(durationSeconds)}</span>
             </div>
-            <div className="h-3 w-px bg-slate-800 hidden sm:block" />
+            <div className="h-3 w-px bg-muted hidden sm:block" />
             <div className="flex items-center gap-1.5">
-              <BookOpen className="h-3.5 w-3.5 text-slate-500" />
+              <BookOpen className="h-3.5 w-3.5 text-muted-foreground" />
               <span>{totalQuestions} {t("mock_test.questions")}</span>
             </div>
           </div>
@@ -96,9 +96,9 @@ export default function MockTestCard({
           variant={attemptStatus === "in_progress" ? "default" : "outline"}
           className={cn(
             "w-full sm:w-auto font-semibold flex items-center justify-center gap-1 shrink-0 px-4",
-            attemptStatus === "in_progress" 
-              ? "bg-amber-600 hover:bg-amber-500 text-white border-amber-600" 
-              : "border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800"
+            attemptStatus === "in_progress"
+              ? "bg-amber-600 hover:bg-amber-500 text-primary-foreground border-amber-600"
+              : "border-border text-muted-foreground hover:text-foreground hover:bg-accent"
           )}
         >
           <span>

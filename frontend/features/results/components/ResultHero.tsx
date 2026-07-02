@@ -24,8 +24,8 @@ export default function ResultHero({
       className={cn(
         "relative overflow-hidden rounded-2xl border p-8 shadow-2xl backdrop-blur-xl transition-all duration-300",
         isPassed
-          ? "border-green-500/20 bg-gradient-to-br from-green-950/40 to-slate-900/60"
-          : "border-red-500/20 bg-gradient-to-br from-red-950/40 to-slate-900/60"
+          ? "border-green-500/20 bg-green-500/10"
+          : "border-red-500/20 bg-red-500/10"
       )}
       role="region"
       aria-label={t("title")}
@@ -53,32 +53,30 @@ export default function ResultHero({
             )}
           </div>
           <div className="space-y-1">
-            <h1 className="text-3xl font-extrabold tracking-tight text-white">
+            <h1 className="text-3xl font-extrabold tracking-tight text-foreground">
               {isPassed ? t("pass") : t("needs_work")}
             </h1>
-            <p className="text-sm text-slate-400 max-w-md">
-              {isPassed
-                ? "Excellent job! You have cleared the overall pass criteria for this test."
-                : "Keep practicing. Clear your concept gaps to pass the next test attempt."}
+            <p className="text-sm text-muted-foreground max-w-md">
+              {isPassed ? t("pass_desc") : t("needs_work_desc")}
             </p>
           </div>
         </div>
 
-        <div className="flex items-baseline gap-6 border-t md:border-t-0 border-slate-800/80 pt-6 md:pt-0">
+        <div className="flex items-baseline gap-6 border-t md:border-t-0 border-border pt-6 md:pt-0">
           <div className="space-y-1">
-            <span className="text-xs uppercase font-semibold text-slate-400 tracking-wider">
+            <span className="text-xs uppercase font-semibold text-muted-foreground tracking-wider">
               {t("score")}
             </span>
-            <div className="text-4xl font-extrabold text-white">
+            <div className="text-4xl font-extrabold text-foreground">
               {score}
-              <span className="text-lg font-normal text-slate-500"> / {maxScore}</span>
+              <span className="text-lg font-normal text-muted-foreground"> / {maxScore}</span>
             </div>
           </div>
 
-          <div className="h-10 w-px bg-slate-800" />
+          <div className="h-10 w-px bg-muted" />
 
           <div className="space-y-1">
-            <span className="text-xs uppercase font-semibold text-slate-400 tracking-wider">
+            <span className="text-xs uppercase font-semibold text-muted-foreground tracking-wider">
               {t("accuracy")}
             </span>
             <div

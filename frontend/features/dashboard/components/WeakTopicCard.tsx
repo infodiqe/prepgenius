@@ -53,21 +53,24 @@ export default function WeakTopicCard({
   };
 
   const sevStyle = getSeverityStyle(severity);
+  // Defensive display only — a missing/non-numeric accuracy must not render as
+  // "undefined%"/"NaN%". Valid values keep their original formatting.
+  const accuracyLabel = Number.isFinite(Number(accuracy)) ? `${accuracy}%` : "—";
 
   return (
-    <Card className={cn("border bg-slate-900/40 backdrop-blur-md hover:border-slate-700 transition-colors w-72 shrink-0 flex flex-col justify-between", sevStyle.bg)}>
+    <Card className={cn("border bg-card backdrop-blur-md hover:border-border transition-colors w-72 shrink-0 flex flex-col justify-between", sevStyle.bg)}>
       <CardContent className="p-5 flex flex-col h-full justify-between space-y-4">
         {/* Header Topic details */}
         <div className="space-y-1">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">
+            <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
               {subjectName}
             </span>
             <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider", sevStyle.badge)}>
               {sevStyle.label}
             </span>
           </div>
-          <h4 className="text-base font-bold text-white tracking-tight line-clamp-2">
+          <h4 className="text-base font-bold text-foreground tracking-tight line-clamp-2">
             {topicName}
           </h4>
         </div>
@@ -75,16 +78,16 @@ export default function WeakTopicCard({
         {/* Accuracy and CTA */}
         <div className="space-y-3">
           <div className="flex items-end justify-between">
-            <span className="text-xs text-slate-400">{t("accuracy")}</span>
+            <span className="text-xs text-muted-foreground">{t("accuracy")}</span>
             <span className={cn("text-lg font-bold tracking-tight", sevStyle.text)}>
-              {accuracy}%
+              {accuracyLabel}
             </span>
           </div>
           <Button
             onClick={() => router.push(`/practice?topic=${topicId}`)}
             size="sm"
             variant="outline"
-            className="w-full flex items-center justify-center gap-1.5 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800"
+            className="w-full flex items-center justify-center gap-1.5 border-border text-muted-foreground hover:text-foreground hover:bg-accent"
           >
             {t("practice_now")}
             <ArrowRight className="h-3.5 w-3.5" />

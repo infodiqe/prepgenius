@@ -124,6 +124,21 @@ class TestPracticeApi:
         )
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
 
+    def test_nonexistent_exam_returns_404_not_500(
+        self, student_api_client, practice_content
+    ):
+        # A missing exam_id is wrapped in ExamNotFoundError by the service; the
+        # attempts view must translate it to 404 rather than leaking a 500.
+        resp = student_api_client.post(
+            PRACTICE_URL,
+            {
+                "exam_id": "00000000-0000-0000-0000-000000000000",
+                "scope_type": "mixed",
+            },
+            format="json",
+        )
+        assert resp.status_code == status.HTTP_404_NOT_FOUND
+
 
 class TestMockFlowRegression:
     """The existing full_mock / previous_year create path must be unaffected."""

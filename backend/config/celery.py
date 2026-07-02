@@ -6,7 +6,10 @@ import os
 
 from celery import Celery
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.dev")
+# RC-03 (P1-7/blocker): default to PROD like wsgi.py/asgi.py. A dev/CI run sets
+# DJANGO_SETTINGS_MODULE explicitly; defaulting to dev here meant any Celery
+# invocation without that env silently ran eager on SQLite (async → sync).
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.prod")
 
 app = Celery("prepgenius")
 

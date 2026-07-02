@@ -77,7 +77,7 @@ describe("BottomTabBar (navConfig-driven)", () => {
     ws.active = "student";
     const { getByRole } = render(<BottomTabBar />);
     const links = within(
-      getByRole("navigation", { name: "Mobile Navigation" }),
+      getByRole("navigation", { name: "mobile_nav_aria" }),
     ).getAllByRole("link");
     expect(links.map((l) => l.getAttribute("aria-label"))).toEqual(
       navConfig.student.bottomTabs.map((i) => i.labelKey),

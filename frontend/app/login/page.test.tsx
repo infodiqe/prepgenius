@@ -30,6 +30,7 @@ const spies = vi.hoisted(() => ({
 // Identity translator so we can assert against i18n keys.
 vi.mock("next-intl", () => ({
   useTranslations: () => (k: string) => k,
+  useLocale: () => "en",
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: spies.push, refresh: spies.refresh }),

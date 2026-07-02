@@ -590,6 +590,10 @@ class PaperDetail(ExamBaseView):
 )
 class PublicExamDetail(APIView):
     permission_classes = [AllowAny]
+    # RC-02B: public, cacheable content consumed by SSR. nginx enforces per-IP
+    # rate limits; the DRF anon throttle keyed by the SSR container IP would
+    # wrongly throttle all server-rendered traffic, so it is disabled here.
+    throttle_classes = []
 
     def get(self, request, slug: str):
         try:
@@ -606,6 +610,10 @@ class PublicExamDetail(APIView):
 )
 class PublicExamList(APIView):
     permission_classes = [AllowAny]
+    # RC-02B: public, cacheable content consumed by SSR. nginx enforces per-IP
+    # rate limits; the DRF anon throttle keyed by the SSR container IP would
+    # wrongly throttle all server-rendered traffic, so it is disabled here.
+    throttle_classes = []
 
     def get(self, request):
         return Response(
@@ -623,6 +631,10 @@ class PublicExamList(APIView):
 )
 class PublicExamSyllabus(APIView):
     permission_classes = [AllowAny]
+    # RC-02B: public, cacheable content consumed by SSR. nginx enforces per-IP
+    # rate limits; the DRF anon throttle keyed by the SSR container IP would
+    # wrongly throttle all server-rendered traffic, so it is disabled here.
+    throttle_classes = []
 
     def get(self, request, slug: str):
         try:
@@ -643,6 +655,10 @@ class PublicExamSyllabus(APIView):
 )
 class PublicExamPreviousYearPapers(APIView):
     permission_classes = [AllowAny]
+    # RC-02B: public, cacheable content consumed by SSR. nginx enforces per-IP
+    # rate limits; the DRF anon throttle keyed by the SSR container IP would
+    # wrongly throttle all server-rendered traffic, so it is disabled here.
+    throttle_classes = []
 
     def get(self, request, slug: str):
         try:

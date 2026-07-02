@@ -51,6 +51,7 @@ from attempts.services.attempt_services import (
     update_mock_test,
 )
 from attempts.services.practice_services import create_practice_attempt
+from exams.exceptions import ExamNotFoundError
 
 from .serializers import (
     ExamAttemptCreateSerializer,
@@ -84,6 +85,11 @@ class AttemptBaseView(APIView):
                 exc = NotFound(str(exc))
             else:
                 exc = ValidationError(str(exc))
+        elif isinstance(exc, ExamNotFoundError):
+            # create_attempt / create_practice_attempt wrap a missing exam_id in
+            # ExamNotFoundError (an exams-domain error). Without this it would
+            # surface as an unhandled 500; a bad exam reference is a 404.
+            exc = NotFound(str(exc))
         elif isinstance(exc, ObjectDoesNotExist):
             exc = NotFound(str(exc))
         return super().handle_exception(exc)

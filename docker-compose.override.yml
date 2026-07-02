@@ -8,6 +8,10 @@ services:
   # enforcement. Without this, SECURE_SSL_REDIRECT issues a 301 to https://
   # which the port-80-only proxy cannot satisfy → 502 on every API call.
   django:
+    # Re-publish the API to the host for local direct access / Django admin.
+    # (Base compose only `expose`s it to the internal network — see RC-03 P0-2.)
+    ports:
+      - "8000:8000"
     environment:
       SECURE_SSL_REDIRECT: "false"
       SECURE_HSTS_SECONDS: "0"
@@ -16,6 +20,18 @@ services:
       # JWT auth cookies must not be Secure over HTTP, or the browser drops
       # them and the user appears logged out after a successful login.
       AUTH_COOKIE_SECURE: "false"
+      # Local dev runs the prod settings module with the dev .env (which may
+      # carry a short/placeholder key); opt out of the prod SECRET_KEY guard.
+      ALLOW_INSECURE_SECRET_KEY: "true"
+
+  # Celery also runs the prod settings module in dev → same opt-out.
+  celery-worker:
+    environment:
+      ALLOW_INSECURE_SECRET_KEY: "true"
+
+  celery-beat:
+    environment:
+      ALLOW_INSECURE_SECRET_KEY: "true"
 
   nginx:
     # Bypass docker-entrypoint.sh template processing entirely.

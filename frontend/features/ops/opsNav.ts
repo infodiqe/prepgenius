@@ -135,8 +135,7 @@ export const opsNavItems: readonly OpsNavItem[] = [
     label: "AI Operations",
     href: "/ops/ai",
     icon: "Sparkles",
-    personas: [SUPER_ADMIN, OPS_MANAGER],
-    comingSoon: true,
+    personas: [SUPER_ADMIN, CONTENT_MANAGER],
   },
   {
     id: "billing",

@@ -18,6 +18,9 @@ const spies = vi.hoisted(() => ({
 }));
 
 vi.mock("next-intl", () => ({ useTranslations: () => (k: string) => k }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: () => {}, refresh: () => {} }),
+}));
 vi.mock("@/features/auth/AuthContext", () => ({
   useAuth: () => ({ user: spies.user, isLoading: spies.authLoading }),
 }));

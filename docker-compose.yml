@@ -40,8 +40,12 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     env_file: .env
-    ports:
-      - "8000:8000"
+    # RC-03 (P0-2): the API is NOT published to the host here. In production it
+    # must only be reachable through nginx (TLS + rate-limit zones); publishing
+    # 8000 binds 0.0.0.0 and bypasses the host firewall (Docker edits iptables).
+    # The dev override re-publishes 8000 for local direct access.
+    expose:
+      - "8000"
     volumes:
       - uploads:/app/uploads
       - static:/app/staticfiles
@@ -56,7 +60,10 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/schema/"]
+      # RC-02B: probe the dedicated unauthenticated, unthrottled liveness
+      # endpoint. The previous target (/api/schema/) was heavy and subject to
+      # the DRF anon throttle, so the probe itself caused 429s → unhealthy flaps.
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz/"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -180,6 +187,26 @@ services:
       - certbot_www:/var/www/certbot
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
 
+  # ── Automated DB + uploads backups (RC-03 P0-1 · PRD v4 §11) ────────────────
+  # Scheduled pg_dump (custom format) + uploads tarball with local retention and
+  # an optional off-box sync hook (BACKUP_REMOTE). Reuses the db image so the
+  # pg_dump client version matches the server. Off-box copy is mandatory before
+  # go-live — set BACKUP_REMOTE (rclone) or sync the db_backups volume off-host.
+  db-backup:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    env_file: .env
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - 'echo "[backup] service up; interval=${BACKUP_INTERVAL_SECONDS:-86400}s"; while true; do sh /scripts/backup.sh || echo "[backup] run failed"; sleep "${BACKUP_INTERVAL_SECONDS:-86400}"; done'
+    volumes:
+      - db_backups:/backups
+      - uploads:/uploads:ro
+      - ./infrastructure/scripts:/scripts:ro
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   pgdata:
   redisdata:
@@ -188,3 +215,4 @@ volumes:
   n8ndata:
   certbot_conf:
   certbot_www:
+  db_backups:

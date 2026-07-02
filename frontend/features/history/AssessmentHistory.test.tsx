@@ -20,6 +20,9 @@ const spies = vi.hoisted(() => ({
 }));
 
 vi.mock("next-intl", () => ({ useTranslations: () => (k: string) => k }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: () => {}, refresh: () => {} }),
+}));
 vi.mock("next/link", () => ({
   __esModule: true,
   default: ({ href, children, ...rest }: any) => (

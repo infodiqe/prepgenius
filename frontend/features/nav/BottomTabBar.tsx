@@ -19,7 +19,7 @@ export default function BottomTabBar() {
 
   return (
     <nav
-      aria-label="Mobile Navigation"
+      aria-label={t("mobile_nav_aria")}
       className="fixed bottom-0 left-0 right-0 z-50 h-16 border-t border-border bg-background/90 backdrop-blur-lg md:hidden"
     >
       <div className="mx-auto flex h-full max-w-md items-center justify-around px-2">

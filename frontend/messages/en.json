@@ -210,7 +210,8 @@
     "language_selector": "Select language",
     "assamese": "Assamese",
     "hindi": "Hindi",
-    "english": "English"
+    "english": "English",
+    "label": "Language"
   },
   "exam_landing": {
     "hero_cta": "Start Preparing Free",
@@ -356,7 +357,13 @@
     "publish": "Publish",
     "control_center": "Control Center",
     "content": "Content",
-    "users": "Users"
+    "users": "Users",
+    "profile_menu": "User profile menu",
+    "skip_to_content": "Skip to main content",
+    "sidebar_nav_aria": "Sidebar Navigation",
+    "mobile_nav_aria": "Mobile Navigation",
+    "expand_sidebar": "Expand Sidebar",
+    "collapse_sidebar": "Collapse Sidebar"
   },
   "workspace": {
     "label": "Workspace",
@@ -377,7 +384,10 @@
     "rateLimit": "Too many attempts. Please wait a moment and try again.",
     "server": "Something went wrong on our end. Please try again.",
     "network": "Connection problem. Check your internet and try again.",
-    "unknown": "Something went wrong. Please try again."
+    "unknown": "Something went wrong. Please try again.",
+    "load_failed_title": "Couldn't load this content",
+    "retry": "Retry",
+    "go_home": "Go to homepage"
   },
   "auth": {
     "login": "Login",
@@ -407,6 +417,7 @@
     "verify_email_link": "Need to verify your email?",
     "resend_verification": "Resend Verification Code",
     "verify_token_placeholder": "Enter your verification token",
+    "reset_token_placeholder": "Enter your reset token",
     "email_for_resend": "Needed to resend your verification token",
     "verifying": "Verifying…",
     "resending": "Resending…",
@@ -573,7 +584,6 @@
     "col_date": "Date",
     "col_score": "Score",
     "col_accuracy": "Accuracy",
-
     "readiness_title": "Readiness Timeline",
     "readiness_subtitle": "How your readiness score has changed over time.",
     "readiness_empty": "No readiness history yet.",
@@ -689,7 +699,10 @@
     "mock_math_title": "Subject-specific Practice Mock (Mathematics)",
     "mock_math_desc": "30 questions · 25 minutes",
     "daily_recommendation_label": "Daily Goal Recommendation",
-    "daily_practice_content": "PrepGenius AI has picked 10 questions tailored specifically to cover your weak areas and keep your daily streak alive."
+    "daily_practice_content": "PrepGenius AI has picked 10 questions tailored specifically to cover your weak areas and keep your daily streak alive.",
+    "syllabus_item": "Syllabus Item",
+    "login_required": "Please log in to view your dashboard.",
+    "your_exam": "Your Exam"
   },
   "results": {
     "title": "Test Results",
@@ -713,7 +726,17 @@
     "section_pass_line": "Section Pass Line",
     "section_score": "Section Score",
     "seconds_suffix": "seconds",
-    "minutes_suffix": "minutes"
+    "minutes_suffix": "minutes",
+    "pass_desc": "Excellent job! You have cleared the overall pass criteria for this test.",
+    "needs_work_desc": "Keep practicing. Clear your concept gaps to pass the next test attempt.",
+    "login_required": "Please log in to view your test results.",
+    "question_not_found": "Question details not found in published exam question bank.",
+    "no_questions": "No questions to display.",
+    "no_subject_breakdown": "No subject breakdowns available for this attempt.",
+    "section_desc_target": "Compare your subject scores against the required exam target of {percent}%.",
+    "section_desc_default": "Compare your subject scores in this attempt.",
+    "subject_target": "/ Target: {percent}%",
+    "required_pass_line": "Required Pass Line: {percent}%"
   },
   "analytics": {
     "title": "Performance Analytics",
@@ -726,7 +749,24 @@
     "attempts_count": "Attempts",
     "no_history_title": "No Performance History",
     "no_history_desc": "Start practicing or take a mock test to see your performance metrics and charts here!",
-    "practice_now": "Practice Now"
+    "practice_now": "Practice Now",
+    "kpi_accuracy_desc": "Aggregated syllabus success",
+    "kpi_attempts_desc": "Scored practices & mocks",
+    "kpi_time_desc": "Overall time per attempt",
+    "kpi_trend_desc": "Latest attempt accuracy",
+    "subject_chart_desc": "Accuracy percentage across subject domains.",
+    "no_subject_data": "No subject data available.",
+    "topic_table_desc": "Accuracy and question breakdowns for subtopics.",
+    "no_topic_data": "No topic data available.",
+    "col_topic": "Topic",
+    "col_resolved": "Resolved",
+    "col_correct": "Correct",
+    "col_accuracy": "Accuracy",
+    "login_required": "Please log in to view your analytics.",
+    "no_exam_title": "No Target Exam Selected",
+    "no_exam_desc": "Please select a target exam in your profile settings to start tracking your performance.",
+    "fallback_subject": "Subject",
+    "fallback_topic": "Topic"
   },
   "practice": {
     "title": "Practice Sessions",
@@ -755,7 +795,11 @@
       "fullscreen": "FullScreen Recommendation",
       "fullscreen_desc": "For the best exam experience and to prevent accidental interruptions, we recommend taking this test in full-screen mode.",
       "cancel": "Cancel",
-      "start": "Start Test"
+      "start": "Start Test",
+      "minutes_suffix": "mins",
+      "marking_positive": "+1.0 mark for each correct response",
+      "marking_negative": "-0.25 negative marking for incorrect responses",
+      "starting": "Starting..."
     },
     "empty_states": {
       "no_exam_title": "No Target Exam Selected",
@@ -764,7 +808,9 @@
       "no_subjects_desc": "There are no subjects configured for this exam yet.",
       "no_mocks_title": "No Mock Tests Available",
       "no_mocks_desc": "There are no mock tests published for this exam at this moment.",
-      "no_history": "No attempts found"
+      "no_history": "No attempts found",
+      "no_exams_title": "No Exams Available",
+      "no_exams_desc": "There are no active target exams configured on the platform at the moment. Please contact support or check back later."
     },
     "pyp": {
       "duration": "Duration",
@@ -779,13 +825,28 @@
       "questions": "Questions",
       "difficulty": "Difficulty",
       "attempted": "Attempted",
-      "start": "Start Mock"
+      "start": "Start Mock",
+      "in_progress": "In Progress"
     },
     "mixed_practice": {
       "title": "Mixed Subject Practice",
-      "desc": "Practice a randomized set of questions covering all subjects in your syllabus to build exam stamina."
+      "desc": "Practice a randomized set of questions covering all subjects in your syllabus to build exam stamina.",
+      "questions_label": "Questions: {count}",
+      "duration_label": "Duration: {mins} mins"
     },
-    "select_exam_label": "Select Exam Context"
+    "select_exam_label": "Select Exam Context",
+    "practice_subtitle": "Browse practice modes, configure customized sessions, or attempt full-length mock exams.",
+    "select_practice_mode": "Select Practice Mode",
+    "practice_modes_aria": "Practice Modes",
+    "select_exam_subtitle": "Switch your active context to browse other practice sets.",
+    "select_exam_placeholder": "Select target exam",
+    "choose_subject_first": "Choose a subject first",
+    "duration_mins": "{count} mins",
+    "back_to_practice": "Back to Practice",
+    "session_not_found_title": "Session Not Found",
+    "session_not_found_desc": "This practice session does not exist or you do not have access to it.",
+    "session_unavailable_title": "Session Unavailable",
+    "session_unavailable_desc": "This session can't be opened because its question set is missing. Please start a new practice session."
   },
   "player": {
     "submit_button": "Submit Test",
@@ -875,6 +936,7 @@
       "label": "Account settings sections",
       "profile": "Profile Info",
       "exam": "Exam Target",
+      "credits": "Credits",
       "security": "Security",
       "privacy": "Privacy & GDPR"
     },
@@ -1034,5 +1096,33 @@
     "approved_success": "Question approved.",
     "rejected_success": "Question rejected.",
     "escalated_success": "Escalated for SME review."
+  },
+  "credits": {
+    "title": "AI Credits",
+    "subtitle": "Your AI credit balance and usage history. Credits power AI features like the tutor and explanations.",
+    "available_label": "Available",
+    "available_hint": "Credits you can spend now.",
+    "reserved_label": "Reserved",
+    "reserved_hint": "Held for an in-progress AI request.",
+    "lifetime_label": "Lifetime",
+    "lifetime_hint": "Total credits ever added to your account.",
+    "premium_note": "AI credits are included with premium plans. The free plan includes unlimited practice and 2 mock tests a day.",
+    "load_error": "We couldn't load your credit balance right now. Please try again later.",
+    "history_title": "Usage history",
+    "history_empty_title": "No credit activity yet",
+    "history_empty_desc": "Credit grants and AI usage will appear here once your account has activity.",
+    "history_truncated": "Showing your most recent credit activity.",
+    "col_date": "Date",
+    "col_type": "Type",
+    "col_amount": "Amount",
+    "col_balance_after": "Balance After",
+    "col_description": "Details",
+    "type": {
+      "grant": "Grant",
+      "debit": "Usage",
+      "reservation": "Reserved",
+      "release": "Released",
+      "adjustment": "Adjustment"
+    }
   }
 }

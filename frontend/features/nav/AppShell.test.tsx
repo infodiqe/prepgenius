@@ -8,6 +8,7 @@ const nav = vi.hoisted(() => ({ path: "/dashboard" }));
 const ws = vi.hoisted(() => ({ active: "student" as string }));
 
 vi.mock("next/navigation", () => ({ usePathname: () => nav.path }));
+vi.mock("next-intl", () => ({ useTranslations: () => (k: string) => k }));
 vi.mock("@/features/workspace/WorkspaceProvider", () => ({
   useWorkspace: () => ({
     activeWorkspace: ws.active,

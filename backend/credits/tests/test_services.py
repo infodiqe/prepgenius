@@ -180,3 +180,51 @@ class TestLocking:
         monkeypatch.setattr(CreditBalance.objects, "select_for_update", spy)
         grant_credits(user=user, amount=D("10.00"))
         assert flag["called"] is True
+
+
+class TestConcurrency:
+    """CLAUDE.md §10 — the credit ledger must prevent double-spend under
+    concurrency. Exercised on real PostgreSQL in the CI `concurrency-tests` job;
+    self-skips on SQLite, which does not enforce row locking."""
+
+    @pytest.mark.concurrency
+    @pytest.mark.django_db(transaction=True)
+    def test_concurrent_reserve_prevents_double_spend(self):
+        import threading
+
+        from django.db import connection, connections
+
+        if connection.vendor != "postgresql":
+            pytest.skip("row-locking is only enforced on PostgreSQL")
+
+        user = UserFactory()
+        # Balance funds EXACTLY one reservation of 10.
+        grant_credits(user=user, amount=D("10.00"), description="seed")
+
+        results: dict[str, str] = {}
+
+        def worker(name: str) -> None:
+            try:
+                reserve_credits(user=user, amount=D("10.00"), description="ai call")
+                results[name] = "ok"
+            except InsufficientCredits:
+                results[name] = "rejected"
+            finally:
+                connections.close_all()
+
+        threads = [
+            threading.Thread(target=worker, args=(n,)) for n in ("a", "b")
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        # Exactly one reservation succeeds; the other is cleanly rejected — the
+        # select_for_update lock in _lock_balance serializes the two debits.
+        assert sorted(results.values()) == ["ok", "rejected"]
+
+        bal = get_credit_balance(user=user)
+        assert bal.available_credits == D("0.00")
+        assert bal.reserved_credits == D("10.00")
+        assert bal.available_credits >= D("0")  # never oversold / negative

@@ -9,21 +9,21 @@ export default function EmptyResultState() {
 
   return (
     <div className="flex h-96 items-center justify-center p-4">
-      <Card className="border-slate-800 bg-slate-900/40 backdrop-blur-md max-w-md w-full p-6 text-center shadow-xl">
+      <Card className="border-border bg-card backdrop-blur-md max-w-md w-full p-6 text-center shadow-xl">
         <CardHeader className="space-y-3 pb-3">
-          <div className="mx-auto rounded-full bg-slate-950 p-4 w-fit text-slate-400">
+          <div className="mx-auto rounded-full bg-muted p-4 w-fit text-muted-foreground">
             <AlertCircle className="h-10 w-10 text-amber-500" />
           </div>
-          <CardTitle className="text-xl font-bold text-white">
+          <CardTitle className="text-xl font-bold text-foreground">
             {t("empty_title")}
           </CardTitle>
-          <CardDescription className="text-slate-400 text-sm">
+          <CardDescription className="text-muted-foreground text-sm">
             {t("empty_desc")}
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-3">
           <Button
-            className="w-full bg-slate-800 text-white hover:bg-slate-700 flex items-center justify-center gap-2"
+            className="w-full bg-muted text-foreground hover:bg-accent flex items-center justify-center gap-2"
             onClick={() => {
               window.location.href = "/dashboard";
             }}

@@ -141,11 +141,11 @@ export default function PracticeClient({
     <div className="space-y-8">
       {/* Title block */}
       <div>
-        <h2 className="text-3xl font-extrabold text-white tracking-tight">
+        <h2 className="text-3xl font-extrabold text-foreground tracking-tight">
           {t("title")}
         </h2>
-        <p className="text-sm text-slate-400 mt-1.5">
-          Browse practice modes, configure customized sessions, or attempt full-length mock exams.
+        <p className="text-sm text-muted-foreground mt-1.5">
+          {t("practice_subtitle")}
         </p>
       </div>
 
@@ -155,7 +155,7 @@ export default function PracticeClient({
       {/* Resumable Active Attempt */}
       {activeAttempt && (
         <div className="space-y-3">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
             {t("resume_section")}
           </h3>
           <ResumeAttemptCard
@@ -168,8 +168,8 @@ export default function PracticeClient({
 
       {/* Main selection tabs */}
       <div className="space-y-3">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-          Select Practice Mode
+        <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          {t("select_practice_mode")}
         </h3>
         <PracticeModeTabs
           examTree={examTree}

@@ -15,6 +15,8 @@ import EmptyResultState from "@/features/results/components/EmptyResultState";
 import ResultSkeleton from "@/features/results/components/ResultSkeleton";
 import { getCurrentUser } from "@/features/auth/serverAuth";
 import { Button } from "@/components/ui/button";
+import { ErrorState } from "@/components/ui";
+import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 interface ResultsPageProps {
@@ -29,8 +31,8 @@ async function ResultContent({ attemptId }: { attemptId: string }) {
 
   if (!user) {
     return (
-      <div className="flex h-96 items-center justify-center text-slate-400">
-        Please log in to view your test results.
+      <div className="flex h-96 items-center justify-center text-muted-foreground">
+        {t("login_required")}
       </div>
     );
   }
@@ -42,8 +44,15 @@ async function ResultContent({ attemptId }: { attemptId: string }) {
     getAttemptDetailServer(attemptId),
   ]);
 
-  if (!resultsData || !attemptDetail || attemptDetail.status !== "scored") {
+  // A not-found or not-yet-scored attempt is a legitimate empty state. But a
+  // scored attempt whose result summary failed to load is a backend failure —
+  // show the error state with Retry rather than a misleading "no results".
+  if (!attemptDetail || attemptDetail.status !== "scored") {
     return <EmptyResultState />;
+  }
+
+  if (!resultsData) {
+    return <ErrorState />;
   }
 
   // Fetch Exam Details and Exam published questions in parallel
@@ -84,7 +93,7 @@ async function ResultContent({ attemptId }: { attemptId: string }) {
           }
         : {
             id: ans.question_id,
-            stem: "Question details not found in published exam question bank.",
+            stem: t("question_not_found"),
             explanation: null,
             difficulty: 2,
             options: [],
@@ -95,18 +104,18 @@ async function ResultContent({ attemptId }: { attemptId: string }) {
   return (
     <div className="space-y-8 pb-12">
       {/* Back button */}
-      <div className="flex items-center justify-between border-b border-slate-800/60 pb-5">
+      <div className="flex items-center justify-between border-b border-border pb-5">
         <Button
+          asChild
           variant="ghost"
-          className="text-slate-400 hover:text-white flex items-center gap-2 px-0"
-          onClick={() => {
-            window.location.href = "/dashboard";
-          }}
+          className="text-muted-foreground hover:text-foreground flex items-center gap-2 px-0"
         >
-          <ArrowLeft className="h-4 w-4" />
-          <span>{t("back_dashboard")}</span>
+          <Link href="/dashboard">
+            <ArrowLeft className="h-4 w-4" />
+            <span>{t("back_dashboard")}</span>
+          </Link>
         </Button>
-        <h2 className="text-xl font-bold text-white tracking-tight">
+        <h2 className="text-xl font-bold text-foreground tracking-tight">
           {t("title")}
         </h2>
       </div>

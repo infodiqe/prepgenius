@@ -57,11 +57,12 @@ const STUDENT_NAV: WorkspaceNav = {
   ],
 };
 
-// ── Review (stub — full screens land in S2; hrefs point to the (review) group) ─
+// ── Review (stub — full screens land in S2). Only routes that exist are linked.
+// SME (/review/sme) and Publish (/review/publish) are not built yet, so they are
+// omitted rather than rendered as dead links — note /review/sme would otherwise
+// fall through to the /review/[id] detail route (SPRINT-5B-02). ─
 const REVIEW_SIDEBAR: NavItem[] = [
   { labelKey: "queue", href: "/review/queue", icon: "ClipboardCheck" },
-  { labelKey: "sme_queue", href: "/review/sme", icon: "ShieldCheck" },
-  { labelKey: "publish", href: "/review/publish", icon: "Send" },
   PROFILE_ITEM,
 ];
 const REVIEW_NAV: WorkspaceNav = {
@@ -69,11 +70,12 @@ const REVIEW_NAV: WorkspaceNav = {
   bottomTabs: REVIEW_SIDEBAR,
 };
 
-// ── Admin (stub — full screens land in S4; hrefs point to the (admin) group) ──
+// ── Admin (stub — full screens land in S4). Only the built route (/admin) is
+// linked. Content (/admin/content) and Users (/admin/users) are not built yet
+// (they would hard-404), so they are omitted rather than rendered as dead links
+// (SPRINT-5B-02). ──
 const ADMIN_SIDEBAR: NavItem[] = [
   { labelKey: "control_center", href: "/admin", icon: "LayoutDashboard" },
-  { labelKey: "content", href: "/admin/content", icon: "FileText" },
-  { labelKey: "users", href: "/admin/users", icon: "Users" },
   PROFILE_ITEM,
 ];
 const ADMIN_NAV: WorkspaceNav = {

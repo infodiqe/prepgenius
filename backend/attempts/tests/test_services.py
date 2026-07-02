@@ -405,6 +405,7 @@ class TestConcurrencyHardening:
         after = AttemptSectionAnalytics.objects.filter(attempt=attempt).count()
         assert after == before  # no extra analytics from a rejected re-score
 
+    @pytest.mark.concurrency
     @pytest.mark.django_db(transaction=True)
     def test_concurrent_submits_finalize_exactly_once(self):
         """Postgres-only: two threads submitting the same in-progress attempt

@@ -24,6 +24,8 @@ export default function TopBar() {
   const router = useRouter();
   const t = useTranslations("auth");
   const tNav = useTranslations("nav");
+  const tLang = useTranslations("language");
+  const tWorkspace = useTranslations("workspace");
 
   const handleLanguageChange = (newLocale: "as" | "en" | "hi") => {
     document.cookie = `locale=${newLocale}; path=/; max-age=31536000; SameSite=Lax`;
@@ -70,10 +72,10 @@ export default function TopBar() {
               variant="ghost"
               size="sm"
               className="flex items-center gap-2 text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label="Select Language"
+              aria-label={tLang("language_selector")}
             >
               <Globe className="h-4 w-4" />
-              <span className="text-xs uppercase font-semibold md:block hidden">Language</span>
+              <span className="text-xs uppercase font-semibold md:block hidden">{tLang("label")}</span>
               <ChevronDown className="h-3 w-3 opacity-55" />
             </Button>
           </DropdownMenuTrigger>
@@ -104,7 +106,7 @@ export default function TopBar() {
           <DropdownMenuTrigger asChild>
             <button
               className="flex items-center gap-2 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring p-0.5"
-              aria-label="User profile menu"
+              aria-label={tNav("profile_menu")}
             >
               <Avatar className="h-9 w-9 border border-border bg-muted">
                 <AvatarFallback className="bg-muted text-foreground">
@@ -117,7 +119,7 @@ export default function TopBar() {
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
                 <p className="text-sm font-semibold text-foreground">
-                  {user?.full_name || "Student"}
+                  {user?.full_name || tWorkspace("student")}
                 </p>
                 <p className="text-xs text-muted-foreground truncate">
                   {user?.email || ""}

@@ -1,7 +1,9 @@
 import React from "react";
+import { getTranslations } from "next-intl/server";
 import { getExamsListServer, getExamTreeServer, getMockTestsServer, listAttemptsServer } from "@/features/practice/practiceService";
 import PracticeClient from "@/features/practice/components/PracticeClient";
 import EmptyPracticeState from "@/features/practice/components/EmptyPracticeState";
+import { ErrorState } from "@/components/ui";
 
 interface PageProps {
   searchParams: Promise<{
@@ -12,16 +14,27 @@ interface PageProps {
 
 export default async function PracticePage({ searchParams }: PageProps) {
   const resolvedParams = await searchParams;
-  
+  const t = await getTranslations("practice");
+
   // 1. Fetch the list of exams
   const exams = await getExamsListServer();
-  
-  if (!exams || exams.length === 0) {
+
+  // A failed fetch (null) must not masquerade as "No Exams Available" — show the
+  // error state with Retry. Only a successful-but-empty list is a true empty.
+  if (exams === null) {
+    return (
+      <div className="container mx-auto px-4 py-12 flex items-center justify-center min-h-[50vh]">
+        <ErrorState />
+      </div>
+    );
+  }
+
+  if (exams.length === 0) {
     return (
       <div className="container mx-auto px-4 py-12 flex items-center justify-center min-h-[50vh]">
         <EmptyPracticeState
-          title="No Exams Available"
-          description="There are no active target exams configured on the platform at the moment. Please contact support or check back later."
+          title={t("empty_states.no_exams_title")}
+          description={t("empty_states.no_exams_desc")}
         />
       </div>
     );

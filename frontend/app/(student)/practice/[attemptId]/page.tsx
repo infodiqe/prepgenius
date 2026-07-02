@@ -27,6 +27,7 @@
 
 import React from 'react';
 import { redirect } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { getCurrentUser } from '@/features/auth/serverAuth';
 import { getAttemptDetailServer } from '@/features/attempts/attemptServerService';
@@ -67,6 +68,7 @@ function stripIsCorrect(answers: readonly RawAnswer[]): StrippedAnswerForPlayer[
 
 export default async function PracticeAttemptPage({ params, searchParams }: PageProps) {
   const { attemptId } = await params;
+  const t = await getTranslations('practice');
 
   // SPR1-HOTFIX-02: the diagnostic flow finalises on the diagnostic completion
   // screen rather than the generic results page. Everything else is unchanged.
@@ -84,16 +86,16 @@ export default async function PracticeAttemptPage({ params, searchParams }: Page
 
   if (!attempt) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen gap-6 bg-white text-slate-800 px-4">
-        <h2 className="text-xl font-bold">Session Not Found</h2>
-        <p className="text-sm text-slate-500 text-center max-w-sm">
-          This practice session does not exist or you do not have access to it.
+      <div className="flex flex-col items-center justify-center h-screen gap-6 bg-background text-foreground px-4">
+        <h2 className="text-xl font-bold">{t('session_not_found_title')}</h2>
+        <p className="text-sm text-muted-foreground text-center max-w-sm">
+          {t('session_not_found_desc')}
         </p>
         <Link
           href="/practice"
           className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
         >
-          Back to Practice
+          {t('back_to_practice')}
         </Link>
       </div>
     );
@@ -120,17 +122,16 @@ export default async function PracticeAttemptPage({ params, searchParams }: Page
 
   if (!attempt.mock_test_id) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen gap-6 bg-white text-slate-800 px-4">
-        <h2 className="text-xl font-bold">Session Unavailable</h2>
-        <p className="text-sm text-slate-500 text-center max-w-sm">
-          This session can&apos;t be opened because its question set is missing.
-          Please start a new practice session.
+      <div className="flex flex-col items-center justify-center h-screen gap-6 bg-background text-foreground px-4">
+        <h2 className="text-xl font-bold">{t('session_unavailable_title')}</h2>
+        <p className="text-sm text-muted-foreground text-center max-w-sm">
+          {t('session_unavailable_desc')}
         </p>
         <Link
           href="/practice"
           className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
         >
-          Back to Practice
+          {t('back_to_practice')}
         </Link>
       </div>
     );

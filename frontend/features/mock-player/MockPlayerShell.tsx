@@ -646,6 +646,7 @@ function PlayerCore({
           role="alertdialog"
           aria-modal="true"
           aria-labelledby="submit-error-heading"
+          aria-describedby="submit-error-message"
           className="fixed inset-0 z-[70] flex flex-col items-center justify-center gap-4 bg-white/95 px-6 backdrop-blur-sm"
         >
           <h2
@@ -654,12 +655,16 @@ function PlayerCore({
           >
             {t('submit_failed_title')}
           </h2>
-          <p className="text-sm text-slate-600 text-center max-w-xs">
+          <p
+            id="submit-error-message"
+            className="text-sm text-slate-600 text-center max-w-xs"
+          >
             {submitError}
           </p>
           <div className="flex gap-3">
             <button
               type="button"
+              autoFocus
               onClick={() => setSubmitError(null)}
               className="px-4 py-2 rounded-lg text-sm font-medium border border-slate-200 text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
             >

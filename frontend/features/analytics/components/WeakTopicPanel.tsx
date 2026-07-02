@@ -23,27 +23,27 @@ export default function WeakTopicPanel({
   return (
     <div className="space-y-4">
       <div className="flex flex-col space-y-1">
-        <h3 className="text-xl font-bold text-white tracking-tight">
+        <h3 className="text-xl font-bold text-foreground tracking-tight">
           {t("weak_topics_title")}
         </h3>
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-muted-foreground">
           {t("weak_topics_subtitle")}
         </p>
       </div>
 
       {weakTopics.length === 0 ? (
-        <Card className="border-slate-800 bg-slate-900/20 p-6 text-center">
-          <p className="text-sm text-slate-400 font-medium">
+        <Card className="border-border bg-card p-6 text-center">
+          <p className="text-sm text-muted-foreground font-medium">
             {t("positive_reinforcement")}
           </p>
         </Card>
       ) : (
-        <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-slate-800">
+        <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-muted">
           {weakTopics.map((wt) => (
             <WeakTopicCard
               key={wt.topic_id}
               topicName={wt.topic_name}
-              subjectName="Syllabus Item"
+              subjectName={t("syllabus_item")}
               accuracy={wt.accuracy ?? 0}
               severity={wt.severity}
               topicId={wt.topic_id}

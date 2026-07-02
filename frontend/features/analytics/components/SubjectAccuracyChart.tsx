@@ -19,20 +19,20 @@ export default function SubjectAccuracyChart({
   const t = useTranslations("analytics");
 
   return (
-    <Card className="border-slate-800 bg-slate-900/40 backdrop-blur-md">
+    <Card className="border-border bg-card backdrop-blur-md">
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+        <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
           <BarChart3 className="h-5 w-5 text-indigo-400" />
           {t("subject_performance")}
         </CardTitle>
-        <CardDescription className="text-xs text-slate-400">
-          Accuracy percentage across subject domains.
+        <CardDescription className="text-xs text-muted-foreground">
+          {t("subject_chart_desc")}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5 pt-3">
         {data.length === 0 ? (
-          <p className="text-sm text-slate-500 py-6 text-center">
-            No subject data available.
+          <p className="text-sm text-muted-foreground py-6 text-center">
+            {t("no_subject_data")}
           </p>
         ) : (
           data.map((item, idx) => {
@@ -41,15 +41,15 @@ export default function SubjectAccuracyChart({
             return (
               <div key={idx} className="space-y-1.5">
                 <div className="flex items-center justify-between text-xs font-semibold">
-                  <span className="text-slate-300">{item.name}</span>
-                  <span className="text-white">{accuracy}%</span>
+                  <span className="text-muted-foreground">{item.name}</span>
+                  <span className="text-foreground">{accuracy}%</span>
                 </div>
 
-                <div className="relative h-4 w-full bg-slate-950 rounded-full overflow-hidden border border-slate-800/80">
+                <div className="relative h-4 w-full bg-muted rounded-full overflow-hidden border border-border">
                   {/* Decorative grid marker lines (25%, 50%, 75%) */}
-                  <div className="absolute left-[25%] top-0 bottom-0 w-px bg-slate-800/40" />
-                  <div className="absolute left-[50%] top-0 bottom-0 w-px bg-slate-800/40" />
-                  <div className="absolute left-[75%] top-0 bottom-0 w-px bg-slate-800/40" />
+                  <div className="absolute left-[25%] top-0 bottom-0 w-px bg-muted" />
+                  <div className="absolute left-[50%] top-0 bottom-0 w-px bg-muted" />
+                  <div className="absolute left-[75%] top-0 bottom-0 w-px bg-muted" />
 
                   {/* SVG Gradient filled bar */}
                   <div

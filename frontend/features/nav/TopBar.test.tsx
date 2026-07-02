@@ -33,8 +33,9 @@ describe("TopBar", () => {
 
   it("preserves the language switcher and profile menu controls", () => {
     const { getByLabelText } = render(<TopBar />);
-    expect(getByLabelText("Select Language")).toBeTruthy();
-    expect(getByLabelText("User profile menu")).toBeTruthy();
+    // aria-labels are now localized; the test's useTranslations mock echoes the key.
+    expect(getByLabelText("language_selector")).toBeTruthy();
+    expect(getByLabelText("profile_menu")).toBeTruthy();
   });
 
   it("renders the authenticated user's initials in the avatar", () => {

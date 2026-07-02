@@ -75,15 +75,6 @@ export function DeleteAccountPanel() {
           <div className="flex gap-2">
             <Button
               type="button"
-              variant="destructive"
-              className="flex-1"
-              disabled={!password || loading}
-              onClick={onDelete}
-            >
-              {t("privacy.delete_confirm_btn")}
-            </Button>
-            <Button
-              type="button"
               variant="secondary"
               className="flex-1"
               disabled={loading}
@@ -93,6 +84,15 @@ export function DeleteAccountPanel() {
               }}
             >
               {t("privacy.delete_cancel")}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="flex-1"
+              disabled={!password || loading}
+              onClick={onDelete}
+            >
+              {t("privacy.delete_confirm_btn")}
             </Button>
           </div>
         </div>

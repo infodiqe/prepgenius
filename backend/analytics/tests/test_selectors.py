@@ -281,6 +281,20 @@ class TestAnalyticsSelectors:
         assert summary["overall_accuracy"] == Decimal("100.00")
         assert len(summary["recent_activity"]) == 1
 
+    def test_dashboard_summary_no_attempts_returns_null_accuracy(self) -> None:
+        # SPRINT-5A-03: a learner with no answered questions has undefined
+        # accuracy. It must be None (→ "no data yet"), never a fabricated 0.00
+        # or 100.00.
+        from accounts.tests.factories import UserFactory
+
+        exam = ExamFactory()
+        user = UserFactory()
+
+        summary = get_dashboard_summary(user_id=user.id, exam_id=exam.id)
+
+        assert summary["overall_accuracy"] is None
+        assert summary["recent_activity"] == []
+
     def test_get_weak_topic_recommendations(self) -> None:
         exam = ExamFactory()
         subject = SubjectFactory(exam=exam, name="Science")

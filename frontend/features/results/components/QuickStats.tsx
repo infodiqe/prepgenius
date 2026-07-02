@@ -47,8 +47,8 @@ export default function QuickStats({
       title: t("skipped"),
       value: skipped,
       icon: HelpCircle,
-      colorClass: "text-slate-400",
-      bgClass: "bg-slate-500/5 border-slate-500/10",
+      colorClass: "text-muted-foreground",
+      bgClass: "bg-muted border-border",
     },
     {
       title: t("time_taken"),
@@ -64,18 +64,18 @@ export default function QuickStats({
       {statCards.map((stat, idx) => (
         <Card
           key={idx}
-          className={`border ${stat.bgClass} backdrop-blur-md hover:border-slate-700 transition-colors`}
+          className={`border ${stat.bgClass} backdrop-blur-md hover:border-border transition-colors`}
         >
           <CardContent className="flex items-center justify-between p-6">
             <div className="space-y-1">
-              <p className="text-xs font-medium uppercase tracking-wider text-slate-400">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 {stat.title}
               </p>
-              <p className="text-2xl font-bold tracking-tight text-white">
+              <p className="text-2xl font-bold tracking-tight text-foreground">
                 {stat.value}
               </p>
             </div>
-            <div className={`rounded-full bg-slate-950 p-3 ${stat.colorClass} bg-opacity-40`}>
+            <div className={`rounded-full bg-muted p-3 ${stat.colorClass} bg-opacity-40`}>
               <stat.icon className="h-5 w-5" aria-hidden="true" />
             </div>
           </CardContent>

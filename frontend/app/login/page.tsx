@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Button, Input, Label, Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui";
 import { login } from "@/features/auth/authService";
 import { useAuth } from "@/features/auth/AuthContext";
@@ -11,6 +11,8 @@ import { Eye, EyeOff, Globe } from "lucide-react";
 
 export default function LoginPage() {
   const t = useTranslations("auth");
+  const tLang = useTranslations("language");
+  const activeLocale = useLocale();
   const router = useRouter();
   const { refreshProfile } = useAuth();
   
@@ -146,9 +148,10 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-300"
+                  aria-label={showPassword ? t("hide_password") : t("show_password")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded text-slate-400 hover:text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? <EyeOff aria-hidden="true" className="h-4 w-4" /> : <Eye aria-hidden="true" className="h-4 w-4" />}
                 </button>
               </div>
             </div>
@@ -195,25 +198,38 @@ export default function LoginPage() {
       </Card>
 
       {/* Language Switcher Footer Component */}
-      <div className="mt-8 flex items-center gap-2 rounded-full border border-slate-800 bg-slate-900/40 px-4 py-1.5 backdrop-blur-md">
-        <Globe className="h-4 w-4 text-slate-400" />
+      <div
+        role="group"
+        aria-label={tLang("language_selector")}
+        className="mt-8 flex items-center gap-2 rounded-full border border-slate-800 bg-slate-900/40 px-4 py-1.5 backdrop-blur-md"
+      >
+        <Globe aria-hidden="true" className="h-4 w-4 text-slate-400" />
         <button
+          type="button"
           onClick={() => handleLanguageChange("as")}
-          className="text-xs font-semibold text-slate-300 hover:text-white"
+          aria-label={tLang("assamese")}
+          aria-current={activeLocale === "as" ? "true" : undefined}
+          className="rounded text-xs font-semibold text-slate-300 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 aria-[current]:text-white aria-[current]:underline"
         >
           অসমীয়া
         </button>
-        <span className="text-slate-700">|</span>
+        <span className="text-slate-700" aria-hidden="true">|</span>
         <button
+          type="button"
           onClick={() => handleLanguageChange("en")}
-          className="text-xs font-semibold text-slate-300 hover:text-white"
+          aria-label={tLang("english")}
+          aria-current={activeLocale === "en" ? "true" : undefined}
+          className="rounded text-xs font-semibold text-slate-300 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 aria-[current]:text-white aria-[current]:underline"
         >
           English
         </button>
-        <span className="text-slate-700">|</span>
+        <span className="text-slate-700" aria-hidden="true">|</span>
         <button
+          type="button"
           onClick={() => handleLanguageChange("hi")}
-          className="text-xs font-semibold text-slate-300 hover:text-white"
+          aria-label={tLang("hindi")}
+          aria-current={activeLocale === "hi" ? "true" : undefined}
+          className="rounded text-xs font-semibold text-slate-300 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 aria-[current]:text-white aria-[current]:underline"
         >
           हिंदी
         </button>

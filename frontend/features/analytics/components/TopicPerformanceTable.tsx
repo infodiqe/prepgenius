@@ -21,36 +21,37 @@ export default function TopicPerformanceTable({
   const t = useTranslations("analytics");
 
   return (
-    <Card className="border-slate-800 bg-slate-900/40 backdrop-blur-md">
+    <Card className="border-border bg-card backdrop-blur-md">
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+        <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
           <Compass className="h-5 w-5 text-indigo-400" />
           {t("topic_performance")}
         </CardTitle>
-        <CardDescription className="text-xs text-slate-400">
-          Accuracy and question breakdowns for subtopics.
+        <CardDescription className="text-xs text-muted-foreground">
+          {t("topic_table_desc")}
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-3">
         {topics.length === 0 ? (
-          <p className="text-sm text-slate-500 py-6 text-center">
-            No topic data available.
+          <p className="text-sm text-muted-foreground py-6 text-center">
+            {t("no_topic_data")}
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left text-slate-300">
-              <thead className="text-xs uppercase bg-slate-950/45 text-slate-400 border-b border-slate-800">
+            <table className="w-full text-sm text-left text-muted-foreground">
+              <caption className="sr-only">{t("topic_performance")}</caption>
+              <thead className="text-xs uppercase bg-muted text-muted-foreground border-b border-border">
                 <tr>
-                  <th scope="col" className="px-4 py-3">Topic</th>
-                  <th scope="col" className="px-4 py-3 text-center">Resolved</th>
-                  <th scope="col" className="px-4 py-3 text-center">Correct</th>
-                  <th scope="col" className="px-4 py-3 text-right">Accuracy</th>
+                  <th scope="col" className="px-4 py-3">{t("col_topic")}</th>
+                  <th scope="col" className="px-4 py-3 text-center">{t("col_resolved")}</th>
+                  <th scope="col" className="px-4 py-3 text-center">{t("col_correct")}</th>
+                  <th scope="col" className="px-4 py-3 text-right">{t("col_accuracy")}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/40">
+              <tbody className="divide-y divide-border">
                 {topics.map((topic, idx) => (
-                  <tr key={idx} className="hover:bg-slate-950/20 transition-colors">
-                    <td className="px-4 py-3.5 font-medium text-white">{topic.name}</td>
+                  <tr key={idx} className="hover:bg-accent transition-colors">
+                    <td className="px-4 py-3.5 font-medium text-foreground">{topic.name}</td>
                     <td className="px-4 py-3.5 text-center">{topic.total}</td>
                     <td className="px-4 py-3.5 text-center text-green-400">{topic.correct}</td>
                     <td className="px-4 py-3.5 text-right font-bold">

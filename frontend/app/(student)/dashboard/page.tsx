@@ -10,7 +10,7 @@ import DashboardSkeleton from "@/features/dashboard/components/DashboardSkeleton
 import StatCard from "@/features/dashboard/components/StatCard";
 import DailyPracticeCard from "@/features/dashboard/components/DailyPracticeCard";
 import WeakTopicCard from "@/features/dashboard/components/WeakTopicCard";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button } from "@/components/ui";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button, ErrorState } from "@/components/ui";
 import { Flame, BarChart3, HelpCircle, Target, BookOpen, AlertCircle, ArrowRight, Calendar, Compass, Award } from "lucide-react";
 
 function getGreetingKey(hour: number): string {
@@ -32,8 +32,8 @@ async function DashboardContent() {
   const user = await getCurrentUser();
   if (!user) {
     return (
-      <div className="flex h-96 items-center justify-center text-slate-400">
-        Please log in to view your dashboard.
+      <div className="flex h-96 items-center justify-center text-muted-foreground">
+        {t("login_required")}
       </div>
     );
   }
@@ -56,7 +56,10 @@ async function DashboardContent() {
   const streak = dashboardData?.streak ?? 0;
   const dailyTarget = dashboardData?.daily_target ?? 10;
   const dailyAttempted = dashboardData?.daily_questions_attempted ?? 0;
-  const overallAccuracy = dashboardData?.overall_accuracy ?? "0.00";
+  // overall_accuracy is null when the learner has no answered-question data.
+  // Render an em-dash rather than a fabricated 0.00%/100% (SPRINT-5A-03).
+  const overallAccuracy = dashboardData?.overall_accuracy ?? null;
+  const accuracyDisplay = overallAccuracy === null ? "—" : `${overallAccuracy}%`;
   const weakTopics = dashboardData?.weak_topics ?? [];
   const recommendations = dashboardData?.recommendations ?? [];
 
@@ -65,19 +68,19 @@ async function DashboardContent() {
 
   // Real countdown from user profile exam_date
   const daysRemaining = calcDaysRemaining(user.exam_date);
-  const targetExamName = examDetail?.name ?? "Your Exam";
+  const targetExamName = examDetail?.name ?? t("your_exam");
 
   return (
     <div className="space-y-8 pb-12">
       {/* ── SECTION 1: GREETING & COUNTDOWN ── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/60 pb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-6">
         <div>
-          <h2 className="text-3xl font-extrabold tracking-tight text-white">
+          <h2 className="text-3xl font-extrabold tracking-tight text-foreground">
             {greetingKey === "good_morning" && t("good_morning", { name: user.full_name })}
             {greetingKey === "good_afternoon" && t("good_afternoon", { name: user.full_name })}
             {greetingKey === "good_evening" && t("good_evening", { name: user.full_name })}
           </h2>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             {t("greeting_subtitle")}
           </p>
         </div>
@@ -89,7 +92,7 @@ async function DashboardContent() {
             <span>{t("countdown", { days: daysRemaining, exam: targetExamName })}</span>
           </div>
         ) : user.target_exam_id ? (
-          <div className="flex items-center gap-2.5 rounded-full border border-slate-700 bg-slate-800/40 px-4 py-2 text-sm font-semibold text-slate-400">
+          <div className="flex items-center gap-2.5 rounded-full border border-border bg-muted px-4 py-2 text-sm font-semibold text-muted-foreground">
             <Calendar className="h-4 w-4" />
             <span>{targetExamName}</span>
           </div>
@@ -101,7 +104,12 @@ async function DashboardContent() {
         )}
       </div>
 
-      {user.target_exam_id && (
+      {/* A failed dashboard fetch (null) must not render as a fabricated all-zero
+          dashboard — show the error state with Retry. A brand-new learner gets a
+          real (zeroed) payload object, so this branch is reached only on failure. */}
+      {user.target_exam_id && dashboardData === null ? (
+        <ErrorState />
+      ) : user.target_exam_id ? (
         <>
           {/* ── T13 / SPR1-HOTFIX-02: First diagnostic entry — only before any
                  attempt exists AND when a diagnostic mock test is configured. ── */}
@@ -123,7 +131,7 @@ async function DashboardContent() {
             />
             <StatCard
               title={t("accuracy")}
-              value={`${overallAccuracy}%`}
+              value={accuracyDisplay}
               description={t("accuracy_desc")}
               icon={Target}
               iconColorClass="text-green-500"
@@ -153,25 +161,25 @@ async function DashboardContent() {
           {/* ── SECTION 4: WEAK TOPICS ── */}
           <div className="space-y-4">
             <div className="flex flex-col space-y-1">
-              <h3 className="text-xl font-bold text-white tracking-tight">{t("weak_topics_title")}</h3>
-              <p className="text-xs text-slate-400">
+              <h3 className="text-xl font-bold text-foreground tracking-tight">{t("weak_topics_title")}</h3>
+              <p className="text-xs text-muted-foreground">
                 {t("weak_topics_subtitle")}
               </p>
             </div>
 
             {weakTopics.length === 0 ? (
-              <Card className="border-slate-800 bg-slate-900/20 p-6 text-center">
-                <p className="text-sm text-slate-400 font-medium">
+              <Card className="border-border bg-card p-6 text-center">
+                <p className="text-sm text-muted-foreground font-medium">
                   {t("positive_reinforcement")}
                 </p>
               </Card>
             ) : (
-              <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-slate-800">
+              <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-muted">
                 {weakTopics.map((wt: any, idx: number) => (
                   <WeakTopicCard
                     key={wt.topic_id || idx}
                     topicName={wt.topic_name}
-                    subjectName={wt.subject_name || "Syllabus Item"}
+                    subjectName={wt.subject_name || t("syllabus_item")}
                     accuracy={wt.accuracy}
                     severity={wt.severity}
                     topicId={wt.topic_id}
@@ -183,37 +191,37 @@ async function DashboardContent() {
 
           {/* ── SECTION 5: RECOMMENDATIONS ── */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="border-slate-800 bg-slate-900/40 backdrop-blur-md">
+            <Card className="border-border bg-card backdrop-blur-md">
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+                <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
                   <Compass className="h-5 w-5 text-blue-400" />
                   {t("recommendations_title")}
                 </CardTitle>
-                <CardDescription className="text-xs text-slate-400">
+                <CardDescription className="text-xs text-muted-foreground">
                   {t("recommendations_subtitle")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 {recommendations.length === 0 ? (
-                  <p className="text-sm text-slate-500">
+                  <p className="text-sm text-muted-foreground">
                     {t("no_recommendations")}
                   </p>
                 ) : (
                   recommendations.map((rec: any, idx: number) => (
                     <div
                       key={idx}
-                      className="flex items-center justify-between p-3 rounded-lg bg-slate-950/60 border border-slate-800/40 hover:border-slate-800 transition-colors"
+                      className="flex items-center justify-between p-3 rounded-lg bg-muted border border-border hover:border-border transition-colors"
                     >
                       <div className="space-y-0.5">
-                        <h5 className="text-sm font-semibold text-white">
+                        <h5 className="text-sm font-semibold text-foreground">
                           {t("revise_topic", { topic: rec.topic_name })}
                         </h5>
-                        <p className="text-xs text-slate-400">
+                        <p className="text-xs text-muted-foreground">
                           {t("revise_topic_desc")}
                         </p>
                       </div>
                       {/* Link replaces window.location.href onClick — safe in server component */}
-                      <Button size="sm" variant="ghost" className="text-blue-400 hover:text-blue-300 hover:bg-slate-900" asChild>
+                      <Button size="sm" variant="ghost" className="text-blue-400 hover:text-blue-300 hover:bg-accent" asChild>
                         <Link href={`/practice?topic=${rec.topic_id}`}>
                           <ArrowRight className="h-4 w-4" />
                         </Link>
@@ -225,42 +233,42 @@ async function DashboardContent() {
             </Card>
 
             {/* ── SECTION 6: UPCOMING MOCKS ── */}
-            <Card className="border-slate-800 bg-slate-900/40 backdrop-blur-md">
+            <Card className="border-border bg-card backdrop-blur-md">
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+                <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
                   <Award className="h-5 w-5 text-indigo-400" />
                   {t("upcoming_mocks_title")}
                 </CardTitle>
-                <CardDescription className="text-xs text-slate-400">
+                <CardDescription className="text-xs text-muted-foreground">
                   {t("upcoming_mocks_subtitle")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 {/* /mocks route does not exist — link to practice where the mock tab lives */}
-                <div className="flex items-center justify-between p-3 rounded-lg bg-slate-950/60 border border-slate-800/40">
+                <div className="flex items-center justify-between p-3 rounded-lg bg-muted border border-border">
                   <div className="space-y-0.5">
-                    <h5 className="text-sm font-semibold text-white">
+                    <h5 className="text-sm font-semibold text-foreground">
                       {t("mock_full_length_title")}
                     </h5>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-muted-foreground">
                       {t("mock_full_length_desc")}
                     </p>
                   </div>
-                  <Button size="sm" className="bg-slate-800 text-slate-200 hover:bg-slate-700" asChild>
+                  <Button size="sm" className="bg-muted text-muted-foreground hover:bg-accent" asChild>
                     <Link href="/practice">{t("register_btn")}</Link>
                   </Button>
                 </div>
 
-                <div className="flex items-center justify-between p-3 rounded-lg bg-slate-950/60 border border-slate-800/40">
+                <div className="flex items-center justify-between p-3 rounded-lg bg-muted border border-border">
                   <div className="space-y-0.5">
-                    <h5 className="text-sm font-semibold text-white">
+                    <h5 className="text-sm font-semibold text-foreground">
                       {t("mock_math_title")}
                     </h5>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-muted-foreground">
                       {t("mock_math_desc")}
                     </p>
                   </div>
-                  <Button size="sm" className="bg-slate-800 text-slate-200 hover:bg-slate-700" asChild>
+                  <Button size="sm" className="bg-muted text-muted-foreground hover:bg-accent" asChild>
                     <Link href="/practice">{t("register_btn")}</Link>
                   </Button>
                 </div>
@@ -268,7 +276,7 @@ async function DashboardContent() {
             </Card>
           </div>
         </>
-      )}
+      ) : null}
     </div>
   );
 }

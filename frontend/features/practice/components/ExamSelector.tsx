@@ -37,27 +37,27 @@ export default function ExamSelector({
   };
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/40 border border-slate-800/80 p-5 rounded-2xl backdrop-blur-xl">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card border border-border p-5 rounded-2xl backdrop-blur-xl">
       <div className="flex items-center gap-3">
         <div className="rounded-full p-2.5 bg-indigo-500/10 text-indigo-400">
           <BookOpen className="h-5 w-5" />
         </div>
         <div className="space-y-0.5">
-          <h3 className="text-sm font-semibold text-slate-400">
+          <h3 className="text-sm font-semibold text-muted-foreground">
             {t("select_exam_label")}
           </h3>
-          <p className="text-xs text-slate-500">
-            Switch your active context to browse other practice sets.
+          <p className="text-xs text-muted-foreground">
+            {t("select_exam_subtitle")}
           </p>
         </div>
       </div>
 
       <div className="w-full sm:w-72 space-y-1">
         <Select value={selectedExamId} onValueChange={handleValueChange}>
-          <SelectTrigger className="border-slate-800 bg-slate-950/80 text-white focus:ring-indigo-500">
-            <SelectValue placeholder="Select target exam" />
+          <SelectTrigger className="border-border bg-muted text-foreground focus:ring-indigo-500">
+            <SelectValue placeholder={t("select_exam_placeholder")} />
           </SelectTrigger>
-          <SelectContent className="border-slate-800 bg-slate-950 text-slate-200">
+          <SelectContent className="border-border bg-muted text-muted-foreground">
             {exams.map((exam) => (
               <SelectItem key={exam.id} value={exam.id}>
                 {exam.name} ({exam.code})

@@ -104,7 +104,7 @@ export default function ResumeAttemptCard({
     : "--";
 
   return (
-    <Card className="border-amber-500/20 bg-gradient-to-br from-amber-950/20 to-slate-900/60 shadow-xl backdrop-blur-xl animate-pulse-subtle">
+    <Card className="border-amber-500/20 bg-amber-500/10 shadow-xl backdrop-blur-xl animate-pulse-subtle">
       <CardContent className="p-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-3">
@@ -112,22 +112,22 @@ export default function ResumeAttemptCard({
               {t("resume_section")}
             </span>
             <div className="space-y-1">
-              <h3 className="text-xl font-bold text-white tracking-tight">
+              <h3 className="text-xl font-bold text-foreground tracking-tight">
                 {getAttemptTypeName()}
               </h3>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-400">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
                 <div className="flex items-center gap-1.5">
                   <Clock className="h-3.5 w-3.5 text-amber-500" />
                   <span>
                     {t("remaining_time")}:{" "}
-                    <span className="font-semibold text-white">
+                    <span className="font-semibold text-foreground">
                       {formatRemainingTime(timeLeft)}
                     </span>
                   </span>
                 </div>
-                <div className="h-3 w-px bg-slate-800 hidden sm:block" />
+                <div className="h-3 w-px bg-muted hidden sm:block" />
                 <div className="flex items-center gap-1.5">
-                  <Calendar className="h-3.5 w-3.5 text-slate-500" />
+                  <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
                   <span>
                     {t("last_updated")}: {formattedLastActive}
                   </span>
@@ -138,7 +138,7 @@ export default function ResumeAttemptCard({
 
           <Button
             onClick={() => onResume(attempt.id)}
-            className="w-full md:w-auto bg-amber-600 text-white hover:bg-amber-500 font-bold px-6 flex items-center justify-center gap-2 group shrink-0"
+            className="w-full md:w-auto bg-amber-600 text-primary-foreground hover:bg-amber-500 font-bold px-6 flex items-center justify-center gap-2 group shrink-0"
           >
             <PlayCircle className="h-4 w-4 transition-transform group-hover:scale-110" />
             <span>{t("resume_attempt")}</span>
