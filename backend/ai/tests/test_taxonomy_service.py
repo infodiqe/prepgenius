@@ -144,6 +144,7 @@ class TestAcceptAndImport:
         assert str(audit.imported_question_id) == outcome.import_result.question_id
         assert audit.created_by == user
         assert audit.suggestion["overall_confidence"] == "exact"
+        assert "exact" in str(audit)
 
     def test_override_flagged(self):
         exam, subject, topic, subtopic = _taxonomy()
