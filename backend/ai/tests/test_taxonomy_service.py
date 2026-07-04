@@ -65,8 +65,8 @@ class TestResolveExact:
 
 class TestResolvePartialAndNoMatch:
     def test_partial_exam(self):
-        _taxonomy(exam_code="CTET")
-        draft = _matched_draft(exam="CTET exam paper")
+        _taxonomy(exam_code="CTET")  # name "Central Teacher Eligibility Test"
+        draft = _matched_draft(exam="Central Teacher Eligibility")  # near name, not exact
         res = AITaxonomyResolutionService().resolve(draft=draft)
         assert res.exam.confidence == "partial"
         assert len(res.exam.matches) >= 1
@@ -138,7 +138,7 @@ class TestAcceptAndImport:
         audit = outcome.audit
         assert audit.chosen_exam_id == exam.id
         assert audit.chosen_subtopic_id == subtopic.id
-        assert audit.suggested_subtopic_id == subtopic.id
+        assert str(audit.suggested_subtopic_id) == str(subtopic.id)
         assert audit.is_override is False  # accepted the suggestion
         assert audit.confidence == "exact"
         assert str(audit.imported_question_id) == outcome.import_result.question_id
