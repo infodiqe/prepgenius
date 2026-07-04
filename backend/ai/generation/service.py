@@ -86,6 +86,7 @@ class QuestionGenerationService:
         request: QuestionGenerationRequest,
         *,
         created_by: Any | None = None,
+        provider: str | None = None,
     ) -> QuestionGenerationResponse:
         self._validate(request)
         payload = self._build_payload(request)
@@ -94,8 +95,47 @@ class QuestionGenerationService:
             prompt_type=PromptType.QUESTION_GENERATION,
             payload=payload,
             created_by=created_by,
+            # Optional provider override (Sprint-6B-02, Task 5). ``None`` = Auto,
+            # i.e. the configured fallback chain (unchanged default behaviour).
+            provider=provider,
+            # Credit cost scales with the number of questions requested; the
+            # gateway reserves/commits/releases against ``created_by`` (Task 2).
+            credit_units=request.count,
         )
+        return self._build_response(result, request)
 
+    def improve(
+        self,
+        *,
+        prompt_type: PromptType | str,
+        payload: dict[str, Any],
+        context: QuestionGenerationRequest,
+        created_by: Any | None = None,
+        provider: str | None = None,
+        credit_units: int = 1,
+    ) -> QuestionGenerationResponse:
+        """
+        Run an AI *improvement* prompt through the SAME gateway + parse/map pipeline
+        as generation (Sprint-6B-04). The caller (the review assistant) supplies an
+        improvement ``prompt_type`` and a ``payload`` describing the current
+        question; ``context`` provides mapping defaults (question_type / difficulty
+        / bloom / language) for the returned question. Credits are reserved /
+        committed / released by the gateway against ``created_by`` (Task 7). No
+        generation logic is duplicated — only the entry prompt/payload differ.
+        """
+        result = self._generate(
+            prompt_type=prompt_type,
+            payload=payload,
+            created_by=created_by,
+            provider=provider,
+            credit_units=credit_units,
+        )
+        return self._build_response(result, context)
+
+    def _build_response(
+        self, result: Any, context: QuestionGenerationRequest
+    ) -> QuestionGenerationResponse:
+        """Map a gateway ``AIResult`` into a typed response (shared by generate/improve)."""
         if not result.success:
             error = (result.error or "").lower()
             if "timeout" in error or "timed out" in error:
@@ -109,7 +149,7 @@ class QuestionGenerationService:
             raise EmptyGenerationResponseError("AI returned an empty response.")
 
         data = self._parse_json(text)
-        questions = self._map_questions(data, request)
+        questions = self._map_questions(data, context)
         if not questions:
             raise EmptyGenerationResponseError("AI returned no questions.")
 
@@ -118,6 +158,10 @@ class QuestionGenerationService:
             provider=result.provider,
             model=result.model,
             request_id=result.request_id,
+            prompt_tokens=result.prompt_tokens,
+            completion_tokens=result.completion_tokens,
+            total_tokens=result.total_tokens,
+            cost=result.cost,
         )
 
     # ── Validation ───────────────────────────────────────────────────────────

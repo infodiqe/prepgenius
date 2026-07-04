@@ -187,6 +187,112 @@ PROMPT_REGISTRY: dict[PromptType, PromptTemplate] = {
 }
 
 
+# ── AI Content Review Assistant prompts (Sprint-6B-04) ───────────────────────
+# One prompt per review action. Each renders the CURRENT question plus an action
+# directive and returns an improved question in the SAME canonical JSON schema as
+# generation, so the existing parser/validator/quality/version pipeline is reused
+# unchanged. Prompts live here (never hardcoded in services). The system prompt is
+# never replaced — reviewer instructions only augment the user message.
+_REVIEW_SYSTEM = (
+    "You are an expert competitive-exam question editor. You improve ONE existing "
+    "multiple-choice question in place, preserving factual correctness and a single, "
+    "unambiguous best answer. Apply ONLY the requested improvement and keep "
+    "everything else intact. CRITICAL OUTPUT RULES: respond with valid JSON ONLY. No "
+    "markdown, no code fences, no commentary before or after the JSON."
+)
+
+# NOTE: contains NO literal braces — the JSON schema is described in prose so
+# str.format rendering stays safe. Only the named placeholders are substituted; any
+# the caller omits render as empty (never the string "None" — the service coerces).
+_REVIEW_BODY = (
+    "Context — Exam: {exam}; Subject: {subject}; Topic: {topic}; Subtopic: "
+    "{subtopic}; requested difficulty: {difficulty}; requested Bloom level: "
+    "{bloom_level}; language: {language}.\n\n"
+    "CURRENT QUESTION\n"
+    "Stem: {stem}\n"
+    "Options:\n{options_block}\n"
+    "Correct answer: {correct_answer}\n"
+    "Explanation: {explanation}\n"
+    "Learning objective: {learning_objective}\n\n"
+    "Additional reviewer instructions (optional): {reviewer_instructions}\n\n"
+    "Return a single JSON object with one key named \"questions\" whose value is an "
+    "array containing EXACTLY ONE improved question object with these keys: \"stem\" "
+    "(string), \"options\" (array of objects, each with \"label\" such as A/B/C/D, "
+    "\"text\" string, and \"is_correct\" boolean), \"correct_answer\" (the label of "
+    "the single correct option), \"explanation\" (string), \"difficulty\" (string), "
+    "\"bloom_level\" (string), \"estimated_time_seconds\" (integer), \"tags\" (array "
+    "of strings), \"learning_objective\" (string), \"language\" (string), and "
+    "\"confidence_score\" (number between 0 and 1). Exactly one option must have "
+    "is_correct true. Do not include any text outside the JSON object."
+)
+
+_REVIEW_DIRECTIVES: dict[PromptType, str] = {
+    PromptType.REVIEW_IMPROVE_EXPLANATION: (
+        "Rewrite the explanation to be clear, complete, and educational — state why "
+        "the correct answer is correct and why the distractors are wrong. Do not "
+        "change the stem or the options."
+    ),
+    PromptType.REVIEW_IMPROVE_DISTRACTORS: (
+        "Replace weak or implausible distractors with plausible ones that reflect "
+        "common misconceptions. Keep exactly one correct answer and do not change the "
+        "stem or the meaning of the correct option."
+    ),
+    PromptType.REVIEW_REDUCE_AMBIGUITY: (
+        "Remove ambiguity so the question has exactly one clearly correct answer; "
+        "tighten the wording without changing the concept being tested."
+    ),
+    PromptType.REVIEW_INCREASE_DIFFICULTY: (
+        "Increase the difficulty with deeper reasoning, more steps, or subtler "
+        "distractors, keeping the same topic and a single correct answer."
+    ),
+    PromptType.REVIEW_REDUCE_DIFFICULTY: (
+        "Reduce the difficulty with simpler reasoning and clearer options, keeping "
+        "the same topic and a single correct answer."
+    ),
+    PromptType.REVIEW_IMPROVE_BLOOM: (
+        "Raise the cognitive demand toward the requested Bloom level (e.g. "
+        "application or analysis) while keeping the same topic and a single correct "
+        "answer."
+    ),
+    PromptType.REVIEW_REWRITE_STEM: (
+        "Rewrite the stem for clarity and precision without changing the concept "
+        "tested or the correct answer."
+    ),
+    PromptType.REVIEW_ADD_SCENARIO: (
+        "Add a realistic, concise scenario or context to the stem to make the "
+        "question application-based, keeping the same concept and correct answer."
+    ),
+    PromptType.REVIEW_SIMPLIFY_LANGUAGE: (
+        "Simplify the language for readability — shorter sentences, plainer words — "
+        "without changing the concept, the difficulty target, or the correct answer."
+    ),
+    PromptType.REVIEW_IMPROVE_LEARNING_OBJECTIVE: (
+        "Write a precise, measurable learning objective aligned to the question. Do "
+        "not change the stem or the options."
+    ),
+}
+
+
+def _review_template(prompt_type: PromptType, directive: str) -> PromptTemplate:
+    return PromptTemplate(
+        prompt_type=prompt_type,
+        system=_REVIEW_SYSTEM,
+        template=f"IMPROVEMENT REQUESTED: {directive}\n\n{_REVIEW_BODY}",
+        # No required vars: the review service always supplies the full question
+        # payload, and this keeps the generic "render every prompt" parity test
+        # (which uses a stem-less payload) green.
+        required_vars=(),
+    )
+
+
+PROMPT_REGISTRY.update(
+    {
+        prompt_type: _review_template(prompt_type, directive)
+        for prompt_type, directive in _REVIEW_DIRECTIVES.items()
+    }
+)
+
+
 def get_prompt(prompt_type: PromptType | str) -> PromptTemplate:
     """Return the registered template for ``prompt_type`` or raise."""
     try:

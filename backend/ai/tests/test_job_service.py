@@ -72,6 +72,22 @@ class TestRunJobSuccess:
         assert job.generated_count == 15
         assert job.failed_count == 5
 
+    def test_batch_size_is_clamped_to_per_request_cap(self, settings):
+        # A misconfigured batch size above the per-request cap must not produce
+        # chunks that QuestionDraftService would reject (count > cap). It is
+        # clamped down so every chunk stays within MAX_QUESTIONS_PER_REQUEST.
+        from ai.generation.enums import MAX_QUESTIONS_PER_REQUEST
+
+        settings.AI_GENERATION_BATCH_SIZE = MAX_QUESTIONS_PER_REQUEST + 30
+        stub = StubDraftService()
+        job = create_generation_job(request=make_request(count=45))
+        run_generation_job(job_id=job.id, draft_service=stub)
+
+        assert all(n <= MAX_QUESTIONS_PER_REQUEST for n in stub.calls)
+        assert sum(stub.calls) == 45
+        job.refresh_from_db()
+        assert job.status == JobStatus.COMPLETED
+
 
 class FlakyDraftService(StubDraftService):
     """Succeeds for the first ``fail_after`` chunks, then raises."""
@@ -114,6 +130,68 @@ class TestIdempotency:
 
     def test_missing_job_returns_none(self):
         assert run_generation_job(job_id=uuid.uuid4()) is None
+
+    def test_running_job_is_not_reprocessed(self):
+        # Simulates a Celery redelivery of an already-claimed job.
+        stub = StubDraftService()
+        job = create_generation_job(request=make_request(count=10))
+        job.status = JobStatus.RUNNING
+        job.save(update_fields=["status"])
+        result = run_generation_job(job_id=job.id, draft_service=stub)
+        assert stub.calls == []
+        assert result.status == JobStatus.RUNNING  # returns current state, no-op
+
+
+class TestRowLocking:
+    """Task 1 — the pending→running claim must acquire a row lock so exactly one
+    worker can transition the job (Celery-retry / concurrency safety)."""
+
+    def test_claim_uses_select_for_update(self, monkeypatch):
+        job = create_generation_job(request=make_request(count=5))
+        original = AIGenerationJob.objects.select_for_update
+        flag = {"called": False}
+
+        def spy(*args, **kwargs):
+            flag["called"] = True
+            return original(*args, **kwargs)
+
+        monkeypatch.setattr(AIGenerationJob.objects, "select_for_update", spy)
+        run_generation_job(job_id=job.id, draft_service=StubDraftService())
+        assert flag["called"] is True
+
+    @pytest.mark.concurrency
+    @pytest.mark.django_db(transaction=True)
+    def test_concurrent_workers_claim_job_once(self):
+        import threading
+
+        from django.db import connection, connections
+
+        if connection.vendor != "postgresql":
+            pytest.skip("row-locking is only enforced on PostgreSQL")
+
+        job = create_generation_job(request=make_request(count=20))
+        # Shared counter of how many workers actually processed the job.
+        processed: list[str] = []
+
+        def worker(name: str) -> None:
+            try:
+                stub = StubDraftService()
+                run_generation_job(job_id=job.id, draft_service=stub)
+                if stub.calls:  # this worker did the generation
+                    processed.append(name)
+            finally:
+                connections.close_all()
+
+        threads = [threading.Thread(target=worker, args=(n,)) for n in ("a", "b")]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        # Exactly one worker ever transitioned pending→running and processed it.
+        assert len(processed) == 1
+        job.refresh_from_db()
+        assert job.status == JobStatus.COMPLETED
 
 
 class TestRollbackWithRealService:

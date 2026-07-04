@@ -23,6 +23,7 @@ from ai.generation.draft_dto import DraftDTO, DraftGenerationResult, draft_to_dt
 from ai.generation.dto import GeneratedQuestion, QuestionGenerationRequest
 from ai.generation.service import QuestionGenerationService, build_generation_payload
 from ai.prompts import render_prompt
+from ai.quality import AIQualityAnalysisService, QualityContext
 from ai.validation.dto import ValidatedQuestion
 from ai.validation.service import QuestionValidationService
 
@@ -32,9 +33,13 @@ class QuestionDraftService:
         self,
         generation_service: QuestionGenerationService | None = None,
         validation_service: QuestionValidationService | None = None,
+        quality_service: AIQualityAnalysisService | None = None,
     ) -> None:
         self._generation = generation_service or QuestionGenerationService()
         self._validation = validation_service or QuestionValidationService()
+        # Rule-based quality analysis runs AFTER validation, BEFORE persistence
+        # (Sprint-6B-03). Advisory metadata only — never rejects/publishes.
+        self._quality = quality_service or AIQualityAnalysisService()
 
     def generate_draft(
         self,
@@ -54,7 +59,15 @@ class QuestionDraftService:
         drafts: list[DraftDTO] = []
         with transaction.atomic():
             for validated in valid:
-                draft = self._persist(request, validated, generation, prompt, created_by)
+                # Quality analysis (6B-03) runs after validation. Earlier drafts in
+                # this same batch are already persisted, so they participate in the
+                # "other generated drafts" duplicate corpus for later ones.
+                analysis = self._quality.analyze(
+                    validated=validated, context=self._quality_context(request)
+                )
+                draft = self._persist(
+                    request, validated, generation, prompt, created_by, analysis
+                )
                 drafts.append(draft_to_dto(draft))
 
         return DraftGenerationResult(
@@ -73,8 +86,11 @@ class QuestionDraftService:
         generation: Any,
         prompt: str,
         created_by: Any | None,
+        analysis: Any,
     ):
         # Imported lazily to keep model out of module-load import graph.
+        from django.utils import timezone
+
         from ai.models import AIQuestionDraft, DraftStatus
 
         q: GeneratedQuestion = validated.normalized_question
@@ -101,6 +117,29 @@ class QuestionDraftService:
             validation_report=validated.result.to_dict(),
             status=DraftStatus.GENERATED,
             created_by=created_by,
+            # ── Quality metadata (6B-03) ─────────────────────────────────────
+            quality_score=analysis.quality_score,
+            quality_grade=analysis.quality_grade,
+            duplicate_status=analysis.duplicate.classification,
+            alignment_status=analysis.alignment.status,
+            bloom_match=analysis.bloom.status,
+            difficulty_match="match" if analysis.difficulty.match else "mismatch",
+            quality_report=analysis.to_dict(),
+            analysis_version=analysis.analysis_version,
+            analysis_provider="rule_based",
+            analysed_at=timezone.now(),
+        )
+
+    @staticmethod
+    def _quality_context(request: QuestionGenerationRequest) -> QualityContext:
+        return QualityContext(
+            exam=request.exam,
+            subject=request.subject,
+            topic=request.topic,
+            subtopic=request.subtopic or None,
+            requested_difficulty=request.difficulty,
+            requested_bloom=request.bloom_level,
+            language=request.language,
         )
 
     def _render_prompt(self, request: QuestionGenerationRequest) -> str:

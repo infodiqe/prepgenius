@@ -129,3 +129,18 @@ class TestProviderErrorMapping:
     def test_empty_ai_response_502(self, stub_gateway):
         resp = self._post(stub_gateway, make_result(text="   "))
         assert resp.status_code == 502
+
+    def test_insufficient_credits_402(self, monkeypatch):
+        # The gateway raises InsufficientCreditsError before any provider call;
+        # the endpoint surfaces it as HTTP 402 Payment Required (Sprint-6B-01).
+        from ai.exceptions import InsufficientCreditsError
+
+        def raise_insufficient(**kw):
+            raise InsufficientCreditsError("Not enough available credits to reserve.")
+
+        monkeypatch.setattr(
+            "ai.generation.service.gateway_generate", raise_insufficient
+        )
+        client = _client_with_role("content_manager")
+        resp = client.post(URL, VALID_BODY, format="json")
+        assert resp.status_code == 402

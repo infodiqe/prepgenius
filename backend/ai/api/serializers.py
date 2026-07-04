@@ -14,7 +14,7 @@ from __future__ import annotations
 from django.conf import settings
 from rest_framework import serializers
 
-from ai.enums import PromptType
+from ai.enums import Provider, PromptType
 from ai.generation.dto import QuestionGenerationRequest
 from ai.generation.enums import (
     MAX_QUESTIONS_PER_REQUEST,
@@ -22,7 +22,8 @@ from ai.generation.enums import (
     Difficulty,
     QuestionType,
 )
-from ai.models import AIQuestionDraft
+from ai.models import AIDraftRegeneration, AIQuestionDraft, AITaxonomyResolution
+from ai.review.enums import ReviewAction
 
 
 class QuestionGenerationRequestSerializer(serializers.Serializer):
@@ -221,6 +222,14 @@ class AIQuestionDraftListSerializer(serializers.ModelSerializer):
             "imported_question",
             "created_by_email",
             "created_at",
+            # ── Quality badges (6B-03) ───────────────────────────────────────
+            "quality_score",
+            "quality_grade",
+            "duplicate_status",
+            "alignment_status",
+            "bloom_match",
+            "difficulty_match",
+            "analysed_at",
         )
 
     def get_created_by_email(self, obj) -> str | None:
@@ -264,6 +273,17 @@ class AIQuestionDraftDetailSerializer(serializers.ModelSerializer):
             "created_by_email",
             "created_at",
             "updated_at",
+            # ── Quality report (6B-03) — expandable panel + badges ───────────
+            "quality_score",
+            "quality_grade",
+            "duplicate_status",
+            "alignment_status",
+            "bloom_match",
+            "difficulty_match",
+            "quality_report",
+            "analysis_version",
+            "analysis_provider",
+            "analysed_at",
         )
 
     def get_created_by_email(self, obj) -> str | None:
@@ -272,3 +292,226 @@ class AIQuestionDraftDetailSerializer(serializers.ModelSerializer):
     def get_prompt_type(self, obj) -> str:
         # Drafts are always produced by the question-generation prompt.
         return PromptType.QUESTION_GENERATION.value
+
+
+# ── Draft regeneration / versioning (Sprint-6B-02) ───────────────────────────
+
+# Operator provider override (Task 5): "auto" = the configured fallback chain
+# (default). "anthropic" surfaces to operators as "Claude".
+_PROVIDER_OVERRIDE_CHOICES = ["auto", *Provider.values]
+
+
+class DraftRegenerateRequestSerializer(serializers.Serializer):
+    """Optional operator feedback + provider override for a single regeneration."""
+
+    feedback = serializers.CharField(
+        required=False, allow_blank=True, allow_null=True,
+        help_text="Optional guidance that augments the prompt (never replaces the "
+        "system prompt), e.g. 'Make harder', 'Reduce ambiguity'.",
+    )
+    provider = serializers.ChoiceField(
+        choices=_PROVIDER_OVERRIDE_CHOICES,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        default="auto",
+        help_text="Provider to use for THIS regeneration only. 'auto' (default) "
+        "uses the configured fallback chain.",
+    )
+
+
+class DraftRollbackRequestSerializer(serializers.Serializer):
+    """Restore the draft's content to an earlier version."""
+
+    version = serializers.IntegerField(min_value=1)
+
+
+class AIDraftRegenerationSerializer(serializers.ModelSerializer):
+    """One immutable version snapshot (history + audit; Tasks 3/7)."""
+
+    created_by_email = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AIDraftRegeneration
+        fields = (
+            "id",
+            "version",
+            "is_original",
+            "stem",
+            "options",
+            "correct_answer",
+            "explanation",
+            "difficulty",
+            "bloom_level",
+            "learning_objective",
+            "estimated_time",
+            "tags",
+            "confidence",
+            "language",
+            "question_type",
+            "provider",
+            "model",
+            "generation_prompt",
+            "feedback",
+            "validation_report",
+            "prompt_tokens",
+            "completion_tokens",
+            "total_tokens",
+            "cost",
+            "request_id",
+            # ── Review-assistant audit (6B-04) ───────────────────────────────
+            "review_action",
+            "quality_before",
+            "quality_after",
+            "created_by_email",
+            "created_at",
+        )
+
+    def get_created_by_email(self, obj) -> str | None:
+        return obj.created_by.email if obj.created_by_id else None
+
+
+class RegenerationOutcomeSerializer(serializers.Serializer):
+    """The updated draft plus the new version it produced."""
+
+    draft = AIQuestionDraftDetailSerializer()
+    regeneration = AIDraftRegenerationSerializer()
+
+
+class VersionDiffFieldSerializer(serializers.Serializer):
+    changed = serializers.BooleanField()
+    previous = serializers.JSONField(allow_null=True)
+    current = serializers.JSONField()
+
+
+class VersionCompareSerializer(serializers.Serializer):
+    """Backend-only diff of two versions (Task 4)."""
+
+    current_version = serializers.IntegerField()
+    previous_version = serializers.IntegerField(allow_null=True)
+    diff = serializers.DictField(child=VersionDiffFieldSerializer())
+
+
+# ── AI Content Review Assistant (Sprint-6B-04) ───────────────────────────────
+
+
+class ReviewImproveRequestSerializer(serializers.Serializer):
+    """Reviewer picks an action (+ optional instructions / provider override)."""
+
+    action = serializers.ChoiceField(choices=ReviewAction.choices)
+    instructions = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        help_text="Optional reviewer guidance that augments the action prompt "
+        "(never replaces the system prompt).",
+    )
+    provider = serializers.ChoiceField(
+        choices=_PROVIDER_OVERRIDE_CHOICES,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        default="auto",
+    )
+
+
+class ReviewRecommendationSerializer(serializers.Serializer):
+    code = serializers.CharField()
+    suggested_action = serializers.CharField(allow_blank=True)
+    reason = serializers.CharField()
+    severity = serializers.CharField()
+
+
+class ReviewRecommendationsSerializer(serializers.Serializer):
+    draft_id = serializers.CharField()
+    quality_score = serializers.IntegerField(allow_null=True)
+    quality_grade = serializers.CharField(allow_blank=True)
+    recommendations = ReviewRecommendationSerializer(many=True)
+
+
+class QualityComparisonSerializer(serializers.Serializer):
+    old_score = serializers.IntegerField()
+    new_score = serializers.IntegerField()
+    quality_delta = serializers.IntegerField()
+    bloom_delta = serializers.DictField()
+    difficulty_delta = serializers.DictField()
+    duplicate_delta = serializers.DictField()
+    alignment_delta = serializers.DictField()
+    explanation_delta = serializers.IntegerField()
+
+
+class ReviewImprovementOutcomeSerializer(serializers.Serializer):
+    """The improved draft, the new version it produced, and the quality comparison."""
+
+    draft = AIQuestionDraftDetailSerializer()
+    regeneration = AIDraftRegenerationSerializer()
+    comparison = QualityComparisonSerializer()
+
+
+class ReviewActionSerializer(serializers.Serializer):
+    value = serializers.CharField()
+    label = serializers.CharField()
+
+
+# ── AI Taxonomy Resolution & Intelligent Import (Sprint-6C-01) ───────────────
+
+
+class TaxonomyMatchSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    label = serializers.CharField()
+    confidence = serializers.CharField()
+    score = serializers.FloatField()
+    reason = serializers.CharField()
+
+
+class LevelSuggestionSerializer(serializers.Serializer):
+    level = serializers.CharField()
+    query = serializers.CharField(allow_blank=True)
+    confidence = serializers.CharField()
+    best = TaxonomyMatchSerializer(allow_null=True)
+    matches = TaxonomyMatchSerializer(many=True)
+
+
+class TaxonomyResolutionSerializer(serializers.Serializer):
+    """Deterministic taxonomy suggestions + the pre-import duplicate check."""
+
+    draft_id = serializers.CharField()
+    exam = LevelSuggestionSerializer()
+    subject = LevelSuggestionSerializer()
+    topic = LevelSuggestionSerializer()
+    subtopic = LevelSuggestionSerializer()
+    overall_confidence = serializers.CharField()
+    suggested_exam_id = serializers.CharField(allow_null=True)
+    suggested_subtopic_id = serializers.CharField(allow_null=True)
+    duplicates = serializers.DictField()
+
+
+class TaxonomyAcceptRequestSerializer(serializers.Serializer):
+    """The reviewer's chosen taxonomy (suggestion accepted or overridden)."""
+
+    exam_id = serializers.UUIDField()
+    subtopic_id = serializers.UUIDField()
+
+
+class TaxonomyResolutionAuditSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AITaxonomyResolution
+        fields = (
+            "id",
+            "confidence",
+            "suggested_exam",
+            "suggested_subtopic",
+            "chosen_exam",
+            "chosen_subtopic",
+            "is_override",
+            "imported_question",
+            "suggestion",
+            "created_at",
+        )
+
+
+class TaxonomyAcceptResponseSerializer(serializers.Serializer):
+    """The import result plus the append-only taxonomy audit record."""
+
+    imported = DraftImportResponseSerializer()
+    audit = TaxonomyResolutionAuditSerializer()

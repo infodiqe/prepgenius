@@ -63,3 +63,30 @@ class DraftNotImportableError(DraftImportError):
 
 class DraftNotDiscardableError(DraftImportError):
     """The draft cannot be discarded (only ``generated`` drafts may be discarded)."""
+
+
+# ── Draft regeneration (Sprint-6B-02) ────────────────────────────────────────
+class DraftRegenerationError(Exception):
+    """Base class for draft regeneration / versioning failures."""
+
+
+class DraftNotRegenerableError(DraftRegenerationError):
+    """
+    The draft cannot be regenerated or rolled back (only ``generated`` drafts may
+    be). An imported draft is an immutable audit record; a discarded one is terminal.
+    """
+
+
+class DraftRegenerationInvalidError(DraftRegenerationError):
+    """
+    The regenerated candidate failed validation, so the existing (valid) draft is
+    preserved unchanged. Carries the validation ``report`` for the operator.
+    """
+
+    def __init__(self, message: str, *, report: dict | None = None) -> None:
+        super().__init__(message)
+        self.report = report or {}
+
+
+class RegenerationVersionNotFoundError(DraftRegenerationError):
+    """The requested version does not exist for this draft (rollback target)."""

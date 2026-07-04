@@ -29,5 +29,7 @@ class TestAIQuestionDraftAdmin:
     def test_list_display_resolves(self):
         model_admin = admin.site._registry[AIQuestionDraft]
         draft = AIQuestionDraftFactory()
+        # A list_display entry resolves on the model OR is an admin display method
+        # (e.g. duplicate_pct) — Django's actual contract.
         for field_name in model_admin.list_display:
-            assert hasattr(draft, field_name)
+            assert hasattr(draft, field_name) or hasattr(model_admin, field_name)

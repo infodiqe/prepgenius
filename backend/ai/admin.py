@@ -9,7 +9,14 @@ is gated by Django's standard staff/superuser + model view permission (RBAC).
 """
 from django.contrib import admin
 
-from ai.models import AIGenerationJob, AIQuestionDraft, AIRequest
+from ai.models import (
+    AIDraftRegeneration,
+    AIGenerationJob,
+    AIQuestionDraft,
+    AIRequest,
+    AITaxonomyResolution,
+    ProviderHealth,
+)
 
 
 class _ReadOnlyAdmin(admin.ModelAdmin):
@@ -71,6 +78,13 @@ class AIQuestionDraftAdmin(_ReadOnlyAdmin):
     scope for this sprint, so the admin is inspect-only.
     """
 
+    @admin.display(description="Duplicate %")
+    def duplicate_pct(self, obj) -> str:
+        report = obj.quality_report or {}
+        dup = report.get("duplicate") or {}
+        pct = dup.get("similarity_pct")
+        return "—" if pct is None else f"{pct:.1f}%"
+
     list_display = (
         "created_at",
         "exam",
@@ -79,6 +93,11 @@ class AIQuestionDraftAdmin(_ReadOnlyAdmin):
         "difficulty",
         "language",
         "status",
+        # ── Quality (6B-03, Task 12) ─────────────────────────────────────────
+        "quality_score",
+        "quality_grade",
+        "duplicate_pct",
+        "analysed_at",
         "imported_question",
         "provider",
         "model",
@@ -86,6 +105,11 @@ class AIQuestionDraftAdmin(_ReadOnlyAdmin):
     )
     list_filter = (
         "status",
+        "quality_grade",
+        "duplicate_status",
+        "alignment_status",
+        "difficulty_match",
+        "bloom_match",
         "exam",
         "subject",
         "topic",
@@ -117,11 +141,164 @@ class AIQuestionDraftAdmin(_ReadOnlyAdmin):
         "model",
         "validation_report",
         "status",
+        "quality_score",
+        "quality_grade",
+        "duplicate_status",
+        "alignment_status",
+        "bloom_match",
+        "difficulty_match",
+        "quality_report",
+        "analysis_version",
+        "analysis_provider",
+        "analysed_at",
         "imported_question",
         "imported_at",
         "created_by",
         "created_at",
         "updated_at",
+    )
+    ordering = ("-created_at",)
+    date_hierarchy = "created_at"
+
+
+@admin.register(ProviderHealth)
+class ProviderHealthAdmin(_ReadOnlyAdmin):
+    """
+    Read-only admin for provider reliability + circuit state (Sprint-6B-01).
+    Rows are maintained exclusively by the gateway's metrics/circuit services;
+    operators inspect health here but never edit it.
+    """
+
+    @admin.display(description="Success rate")
+    def success_rate_display(self, obj) -> str:
+        return f"{obj.success_rate:.0%}"
+
+    list_display = (
+        "provider",
+        "circuit_state",
+        "success_rate_display",
+        "success_count",
+        "failure_count",
+        "timeout_count",
+        "retry_count",
+        "consecutive_failures",
+        "last_success_at",
+        "last_failure_at",
+    )
+    list_filter = ("circuit_state", "provider")
+    search_fields = ("provider",)
+    readonly_fields = (
+        "id",
+        "provider",
+        "success_count",
+        "failure_count",
+        "timeout_count",
+        "retry_count",
+        "consecutive_failures",
+        "circuit_state",
+        "opened_at",
+        "last_success_at",
+        "last_failure_at",
+        "created_at",
+        "updated_at",
+    )
+    ordering = ("provider",)
+
+
+@admin.register(AIDraftRegeneration)
+class AIDraftRegenerationAdmin(_ReadOnlyAdmin):
+    """
+    Read-only admin for the append-only draft version history (Sprint-6B-02).
+    Rows are written exclusively by the DraftRegenerationService and are never
+    edited or deleted — the immutable audit of who/when/provider/model/tokens/
+    cost/feedback per version.
+    """
+
+    list_display = (
+        "created_at",
+        "draft",
+        "version",
+        "is_original",
+        "review_action",
+        "provider",
+        "model",
+        "total_tokens",
+        "cost",
+        "created_by",
+    )
+    list_filter = ("is_original", "review_action", "provider", "created_at")
+    search_fields = ("draft__id", "provider", "model", "created_by__email", "feedback")
+    readonly_fields = (
+        "id",
+        "draft",
+        "version",
+        "is_original",
+        "review_action",
+        "stem",
+        "options",
+        "correct_answer",
+        "explanation",
+        "difficulty",
+        "bloom_level",
+        "learning_objective",
+        "estimated_time",
+        "tags",
+        "confidence",
+        "language",
+        "question_type",
+        "provider",
+        "model",
+        "generation_prompt",
+        "feedback",
+        "validation_report",
+        "prompt_tokens",
+        "completion_tokens",
+        "total_tokens",
+        "cost",
+        "request_id",
+        "quality_before",
+        "quality_after",
+        "created_by",
+        "created_at",
+    )
+    ordering = ("-created_at",)
+    date_hierarchy = "created_at"
+
+
+@admin.register(AITaxonomyResolution)
+class AITaxonomyResolutionAdmin(_ReadOnlyAdmin):
+    """
+    Read-only admin for the append-only import-taxonomy audit (Sprint-6C-01, Task 7):
+    the AI suggestion, the reviewer's chosen taxonomy, the confidence, and the
+    override flag. Rows are written exclusively by the taxonomy service.
+    """
+
+    list_display = (
+        "created_at",
+        "draft",
+        "confidence",
+        "suggested_exam",
+        "chosen_exam",
+        "chosen_subtopic",
+        "is_override",
+        "imported_question",
+        "created_by",
+    )
+    list_filter = ("confidence", "is_override", "created_at")
+    search_fields = ("draft__id", "created_by__email")
+    readonly_fields = (
+        "id",
+        "draft",
+        "suggested_exam",
+        "suggested_subtopic",
+        "confidence",
+        "suggestion",
+        "chosen_exam",
+        "chosen_subtopic",
+        "is_override",
+        "imported_question",
+        "created_by",
+        "created_at",
     )
     ordering = ("-created_at",)
     date_hierarchy = "created_at"

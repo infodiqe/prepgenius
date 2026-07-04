@@ -68,6 +68,33 @@ class AIQuestionDraft(models.Model):
     status = models.CharField(
         max_length=12, choices=DraftStatus.choices, default=DraftStatus.GENERATED
     )
+
+    # ── Quality intelligence (Sprint-6B-03) ─────────────────────────────────
+    # Rule-based quality metadata attached AFTER validation and BEFORE human
+    # review. Advisory only — it never rejects/publishes. ``quality_report`` holds
+    # the full structured QualityAnalysisResult; the flat columns below are
+    # denormalized purely so the workspace/admin can filter server-side (Task 11).
+    quality_score = models.PositiveSmallIntegerField(null=True, blank=True)  # 0–100
+    quality_grade = models.CharField(max_length=1, blank=True, default="")  # A–F
+    duplicate_status = models.CharField(max_length=20, blank=True, default="")
+    alignment_status = models.CharField(max_length=20, blank=True, default="")
+    bloom_match = models.CharField(max_length=12, blank=True, default="")
+    difficulty_match = models.CharField(max_length=12, blank=True, default="")
+    quality_report = models.JSONField(default=dict, blank=True)
+    analysis_version = models.CharField(max_length=20, blank=True, default="")
+    # "rule_based" this sprint; reserved for a future AI-assisted analyser.
+    analysis_provider = models.CharField(max_length=20, blank=True, default="")
+    analysed_at = models.DateTimeField(null=True, blank=True)
+
+    # ── Regeneration / versioning (Sprint-6B-02) ─────────────────────────────
+    # How many times the draft has been regenerated (improved) in place, and when
+    # it was last regenerated. ``current_version`` is which snapshot in
+    # ``ai_draft_regeneration`` the live fields currently reflect (rollback moves
+    # it back to an earlier version). Full per-version history lives in the
+    # append-only AIDraftRegeneration table (never overwritten).
+    regeneration_count = models.PositiveIntegerField(default=0)
+    current_version = models.PositiveIntegerField(default=1)
+    regenerated_at = models.DateTimeField(null=True, blank=True)
     # Set once the draft is bridged into the review pipeline. The draft then
     # becomes an immutable audit record linking to the created Question.
     imported_question = models.ForeignKey(
@@ -101,6 +128,8 @@ class AIQuestionDraft(models.Model):
             models.Index(fields=["difficulty"], name="ix_ai_draft_difficulty"),
             models.Index(fields=["language"], name="ix_ai_draft_language"),
             models.Index(fields=["created_by", "-created_at"], name="ix_ai_draft_user_time"),
+            models.Index(fields=["quality_grade"], name="ix_ai_draft_grade"),
+            models.Index(fields=["duplicate_status"], name="ix_ai_draft_dupe"),
         ]
 
     def __str__(self) -> str:

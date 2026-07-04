@@ -41,6 +41,12 @@ def list_ai_drafts(
     provider: str | None = None,
     search: str | None = None,
     ordering: str | None = None,
+    # ── Quality filters (Sprint-6B-03, Task 11) ──────────────────────────────
+    quality_grade: str | None = None,
+    duplicate_status: str | None = None,
+    alignment_status: str | None = None,
+    difficulty_match: str | None = None,
+    bloom_match: str | None = None,
 ) -> QuerySet[AIQuestionDraft]:
     qs = AIQuestionDraft.objects.all()
     if created_by is not None:
@@ -59,6 +65,16 @@ def list_ai_drafts(
         qs = qs.filter(language=language)
     if provider:
         qs = qs.filter(provider=provider)
+    if quality_grade:
+        qs = qs.filter(quality_grade=quality_grade)
+    if duplicate_status:
+        qs = qs.filter(duplicate_status=duplicate_status)
+    if alignment_status:
+        qs = qs.filter(alignment_status=alignment_status)
+    if difficulty_match:
+        qs = qs.filter(difficulty_match=difficulty_match)
+    if bloom_match:
+        qs = qs.filter(bloom_match=bloom_match)
     if search:
         qs = qs.filter(
             Q(stem__icontains=search)

@@ -50,3 +50,48 @@ class TestGenerationTask:
 
     def test_task_with_missing_job_returns_empty(self):
         assert run_ai_generation_job(str(uuid.uuid4())) == ""
+
+    def test_task_redelivery_is_idempotent(self, monkeypatch):
+        # A Celery retry/redelivery must not regenerate an already-finished job.
+        calls = {"n": 0}
+
+        def counting_gen(**kw):
+            calls["n"] += 1
+            return make_result(text=valid_json(count=2))
+
+        gen = QuestionGenerationService(generate_fn=counting_gen)
+        monkeypatch.setattr(
+            "ai.generation.job_service.QuestionDraftService",
+            lambda: QuestionDraftService(generation_service=gen),
+        )
+        job = create_generation_job(request=make_request(count=2))
+
+        first = run_ai_generation_job(str(job.id))
+        after_first = calls["n"]
+        second = run_ai_generation_job(str(job.id))  # redelivery
+
+        assert first == second == str(job.id)
+        assert calls["n"] == after_first  # second delivery did no extra work
+        assert AIQuestionDraft.objects.count() == 2  # not doubled
+
+    def test_task_marks_failed_on_insufficient_credits(self, monkeypatch):
+        # The real gateway raising InsufficientCreditsError must fail the job
+        # gracefully (never crash the worker).
+        from ai.exceptions import InsufficientCreditsError
+
+        def broke(**kw):
+            raise InsufficientCreditsError("Not enough available credits to reserve.")
+
+        gen = QuestionGenerationService(generate_fn=broke)
+        monkeypatch.setattr(
+            "ai.generation.job_service.QuestionDraftService",
+            lambda: QuestionDraftService(generation_service=gen),
+        )
+        job = create_generation_job(request=make_request(count=2))
+
+        run_ai_generation_job(str(job.id))
+
+        job.refresh_from_db()
+        assert job.status == JobStatus.FAILED
+        assert "credit" in job.error_message.lower()
+        assert AIQuestionDraft.objects.count() == 0

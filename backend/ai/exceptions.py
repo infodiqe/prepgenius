@@ -86,3 +86,14 @@ class ProviderResponseError(ProviderError):
 
 class AllProvidersFailed(AiDomainError):  # noqa: N818
     """Every provider in the fallback chain failed."""
+
+
+class InsufficientCreditsError(AiDomainError):  # noqa: N818
+    """
+    The caller lacks the credits to run an AI operation (Sprint-6B-01, Task 2).
+
+    Raised *before* any provider call — the reserve failed, so per PRD §7 ("no
+    call without a successful reserve") the gateway never contacts a provider.
+    This is a precondition failure (like a contract error), so it is raised rather
+    than returned as a failed ``AIResult``.
+    """

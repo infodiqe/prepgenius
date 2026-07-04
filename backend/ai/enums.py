@@ -39,3 +39,19 @@ class PromptType(models.TextChoices):
     DISTRACTOR_GENERATION = "distractor_generation", "Distractor Generation"
     BLOOM_CLASSIFICATION = "bloom_classification", "Bloom Classification"
     DIFFICULTY_CLASSIFICATION = "difficulty_classification", "Difficulty Classification"
+    # ── AI Content Review Assistant actions (Sprint-6B-04) ───────────────────
+    # One prompt type per review action. Each renders the current question + the
+    # action directive and returns an improved question in the canonical schema.
+    REVIEW_IMPROVE_EXPLANATION = "review_improve_explanation", "Review: Improve Explanation"
+    REVIEW_IMPROVE_DISTRACTORS = "review_improve_distractors", "Review: Improve Distractors"
+    REVIEW_REDUCE_AMBIGUITY = "review_reduce_ambiguity", "Review: Reduce Ambiguity"
+    REVIEW_INCREASE_DIFFICULTY = "review_increase_difficulty", "Review: Increase Difficulty"
+    REVIEW_REDUCE_DIFFICULTY = "review_reduce_difficulty", "Review: Reduce Difficulty"
+    REVIEW_IMPROVE_BLOOM = "review_improve_bloom", "Review: Improve Bloom Level"
+    REVIEW_REWRITE_STEM = "review_rewrite_stem", "Review: Rewrite Stem"
+    REVIEW_ADD_SCENARIO = "review_add_scenario", "Review: Add Scenario"
+    REVIEW_SIMPLIFY_LANGUAGE = "review_simplify_language", "Review: Simplify Language"
+    REVIEW_IMPROVE_LEARNING_OBJECTIVE = (
+        "review_improve_learning_objective",
+        "Review: Improve Learning Objective",
+    )

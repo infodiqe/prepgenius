@@ -36,6 +36,15 @@ class RetryConfig:
     timeout_seconds: float
 
 
+@dataclass(frozen=True)
+class CircuitConfig:
+    """Circuit-breaker policy (Sprint-6B-01, Task 5). All env-driven (Task 6)."""
+
+    enabled: bool
+    failure_threshold: int
+    cooldown_seconds: float
+
+
 def provider_chain() -> list[str]:
     """The ordered fallback chain of provider names (PRD §7: Groq → OpenAI → …)."""
     return list(settings.AI_PROVIDER_CHAIN)
@@ -98,6 +107,31 @@ def retry_config() -> RetryConfig:
         backoff_seconds=float(getattr(settings, "AI_RETRY_BACKOFF_SECONDS", 0.5)),
         timeout_seconds=float(getattr(settings, "AI_REQUEST_TIMEOUT_SECONDS", 30.0)),
     )
+
+
+def circuit_config() -> CircuitConfig:
+    """Circuit-breaker policy from settings (all env-overridable, Task 6)."""
+    return CircuitConfig(
+        enabled=bool(getattr(settings, "AI_CIRCUIT_BREAKER_ENABLED", True)),
+        failure_threshold=max(1, int(getattr(settings, "AI_CIRCUIT_FAILURE_THRESHOLD", 5))),
+        cooldown_seconds=float(getattr(settings, "AI_CIRCUIT_COOLDOWN_SECONDS", 60.0)),
+    )
+
+
+def credit_cost(prompt_type: PromptType | str, units: int = 1) -> Decimal:
+    """
+    Credits to charge for an AI operation, from ``AI_CREDIT_COSTS[prompt_type]``
+    (credits *per unit*) times ``units`` (Sprint-6B-01, Task 2). Returns ``0`` when
+    no cost is configured for the prompt type — a zero cost means the gateway does
+    no reserve/commit (e.g. classification/hint operations remain free). Cost is
+    always a :class:`Decimal` (never float — PRD §5).
+    """
+    costs = getattr(settings, "AI_CREDIT_COSTS", {}) or {}
+    key = str(PromptType(prompt_type).value) if _is_prompt_type(prompt_type) else str(prompt_type)
+    per_unit = costs.get(key)
+    if not per_unit:
+        return Decimal("0")
+    return Decimal(str(per_unit)) * Decimal(int(units))
 
 
 def compute_cost(

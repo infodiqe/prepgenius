@@ -60,3 +60,16 @@ class AIQuestionDraftFactory(DjangoModelFactory):
     model = "mock-model"
     validation_report = factory.LazyFunction(lambda: {"valid": True, "errors": [], "warnings": []})
     status = DraftStatus.GENERATED
+
+    class Params:
+        # Convenience trait for quality-filter/workspace tests (6B-03).
+        analysed = factory.Trait(
+            quality_score=85,
+            quality_grade="B",
+            duplicate_status="unique",
+            alignment_status="aligned",
+            bloom_match="match",
+            difficulty_match="match",
+            analysis_version="1.0",
+            analysis_provider="rule_based",
+        )

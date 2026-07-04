@@ -64,6 +64,41 @@ def get_ai_request_stats(*, user=None) -> dict:
     }
 
 
+def get_ai_cost_breakdown(*, user=None) -> list[dict]:
+    """
+    Per-(provider, model) cost/token accounting for margin monitoring
+    (Sprint-6B-01, Task 4): ``[{provider, model, calls, prompt_tokens,
+    completion_tokens, total_tokens, total_cost}, ...]``, highest cost first.
+    All money is :class:`Decimal` (never float — PRD §5).
+    """
+    qs = AIRequest.objects.all()
+    if user is not None:
+        qs = qs.filter(created_by=user)
+    rows = (
+        qs.values("provider", "model")
+        .annotate(
+            calls=Count("id"),
+            prompt_tokens=Sum("prompt_tokens"),
+            completion_tokens=Sum("completion_tokens"),
+            total_tokens=Sum("total_tokens"),
+            total_cost=Sum("cost"),
+        )
+        .order_by("-total_cost")
+    )
+    return [
+        {
+            "provider": r["provider"],
+            "model": r["model"],
+            "calls": r["calls"] or 0,
+            "prompt_tokens": r["prompt_tokens"] or 0,
+            "completion_tokens": r["completion_tokens"] or 0,
+            "total_tokens": r["total_tokens"] or 0,
+            "total_cost": r["total_cost"] or Decimal("0"),
+        }
+        for r in rows
+    ]
+
+
 def _status_filter(status: RequestStatus):
     from django.db.models import Q
 

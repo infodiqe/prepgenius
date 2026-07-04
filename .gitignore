@@ -8,6 +8,11 @@
 # ---- Python / Django ----
 __pycache__/
 *.py[cod]
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 .venv/
 venv/
 *.sqlite3
@@ -32,6 +37,7 @@ infrastructure/backups/**
 
 # ---- OS / editor ----
 .DS_Store
+.claude/settings.local.json
 .idea/
 .vscode/
 *.log

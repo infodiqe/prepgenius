@@ -8,6 +8,7 @@ is always ``"ai"`` (PRD §8 — AI content is provenance-tagged and Draft-only).
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from decimal import Decimal
 from typing import Any
 
 
@@ -75,6 +76,13 @@ class QuestionGenerationResponse:
     provider: str | None = None
     model: str | None = None
     request_id: str | None = None
+    # Token usage / cost from the gateway AIResult. Propagated so callers that
+    # persist a per-call audit record (e.g. draft regeneration, Sprint-6B-02) can
+    # store them without re-querying — the JSON preview response ignores them.
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
+    cost: Decimal = field(default_factory=lambda: Decimal("0"))
 
     @property
     def count(self) -> int:

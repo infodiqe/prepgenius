@@ -449,6 +449,62 @@ AI_TOKEN_PRICING = env.json("AI_TOKEN_PRICING", default={})
 AI_MAX_BATCH_QUESTIONS = env.int("AI_MAX_BATCH_QUESTIONS", default=500)
 AI_GENERATION_BATCH_SIZE = env.int("AI_GENERATION_BATCH_SIZE", default=20)
 
+# ── AI credit costs (Sprint-6B-01, Task 2) ────────────────────────────────────
+# Credits charged per AI operation, keyed by prompt type, as credits PER UNIT
+# (question generation charges per question). The gateway reserves before the
+# provider call and commits on success / releases on failure via the existing
+# credits module — never debiting directly. A prompt type with no entry (or 0)
+# costs nothing (e.g. hints/classification stay free). Values are strings so they
+# parse to Decimal (never float — PRD §5).
+AI_CREDIT_COSTS = env.json(
+    "AI_CREDIT_COSTS",
+    default={
+        "question_generation": "1",
+        # AI Content Review Assistant improvements (Sprint-6B-04, Task 7). Each
+        # AI-assisted improvement is one AI call → 1 credit, enforced by the gateway
+        # (reserve → commit / release). Keyed by review prompt type.
+        "review_improve_explanation": "1",
+        "review_improve_distractors": "1",
+        "review_reduce_ambiguity": "1",
+        "review_increase_difficulty": "1",
+        "review_reduce_difficulty": "1",
+        "review_improve_bloom": "1",
+        "review_rewrite_stem": "1",
+        "review_add_scenario": "1",
+        "review_simplify_language": "1",
+        "review_improve_learning_objective": "1",
+    },
+)
+
+# ── AI quality intelligence engine (Sprint-6B-03) ─────────────────────────────
+# Rule-based quality analysis that runs after validation and before human review.
+# All thresholds are data (config over code); nothing here calls a provider. The
+# duplicate detector uses deterministic trigram similarity over the published /
+# imported-AI / draft corpus (pgvector cosine is deferred until embeddings are
+# populated — that requires an AI embedding call, out of scope this sprint).
+AI_QUALITY_ANALYSIS_VERSION = env("AI_QUALITY_ANALYSIS_VERSION", default="1.0")
+AI_QUALITY_DUPLICATE_EXACT_THRESHOLD = env.float(
+    "AI_QUALITY_DUPLICATE_EXACT_THRESHOLD", default=0.9
+)
+AI_QUALITY_DUPLICATE_NEAR_THRESHOLD = env.float(
+    "AI_QUALITY_DUPLICATE_NEAR_THRESHOLD", default=0.6
+)
+AI_QUALITY_CORPUS_LIMIT = env.int("AI_QUALITY_CORPUS_LIMIT", default=500)
+AI_QUALITY_MAX_MATCHES = env.int("AI_QUALITY_MAX_MATCHES", default=5)
+
+# ── AI taxonomy resolution (Sprint-6C-01) ─────────────────────────────────────
+# Deterministic (no AI) matching of a draft's free-text exam/subject/topic/subtopic
+# to real taxonomy records. Below the partial threshold a candidate is "no match".
+AI_TAXONOMY_PARTIAL_THRESHOLD = env.float("AI_TAXONOMY_PARTIAL_THRESHOLD", default=0.4)
+AI_TAXONOMY_MAX_MATCHES = env.int("AI_TAXONOMY_MAX_MATCHES", default=5)
+
+# ── AI provider circuit breaker (Sprint-6B-01, Task 5) ────────────────────────
+# Skip a provider that fails repeatedly, then probe it after a cooldown so it can
+# recover automatically. Fully env-driven (Task 6); nothing hardcoded.
+AI_CIRCUIT_BREAKER_ENABLED = env.bool("AI_CIRCUIT_BREAKER_ENABLED", default=True)
+AI_CIRCUIT_FAILURE_THRESHOLD = env.int("AI_CIRCUIT_FAILURE_THRESHOLD", default=5)
+AI_CIRCUIT_COOLDOWN_SECONDS = env.float("AI_CIRCUIT_COOLDOWN_SECONDS", default=60.0)
+
 # ── Email ─────────────────────────────────────────────────────────────────────
 
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@prepgenius.ai")
